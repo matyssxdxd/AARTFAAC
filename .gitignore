@@ -1,0 +1,14 @@
+*.a
+*.d
+*.o
+*.ptx
+AARTFAAC/AARTFAAC
+AARTFAAC/installed
+AARTFAAC/Tests/GenerateTestInput
+AARTFAAC/Tests/InputSectionTest
+Correlator/Correlator
+Correlator/Tests/CorrelatorTest
+Correlator/Tests/DelayAndBandPassTest
+Correlator/Tests/DeviceInstanceTest
+Correlator/Tests/FIR_FilterTest
+Correlator/Tests/Filter_FFT_Test

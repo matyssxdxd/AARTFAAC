@@ -1,0 +1,30 @@
+#!/bin/sh
+
+udp-copy tcp:10.196.248.254:4100 /var/scratch/romein/AARTFAAC/sb0.vis &
+udp-copy tcp:10.196.248.254:4101 /var/scratch/romein/AARTFAAC/sb1.vis &
+udp-copy tcp:10.196.248.254:4102 /var/scratch/romein/AARTFAAC/sb2.vis &
+udp-copy tcp:10.196.248.254:4103 /var/scratch/romein/AARTFAAC/sb3.vis &
+udp-copy tcp:10.196.248.254:4104 /var/scratch/romein/AARTFAAC/sb4.vis &
+udp-copy tcp:10.196.248.254:4105 /var/scratch/romein/AARTFAAC/sb5.vis &
+udp-copy tcp:10.196.248.254:4106 /var/scratch/romein/AARTFAAC/sb6.vis &
+udp-copy tcp:10.196.248.254:4107 /var/scratch/romein/AARTFAAC/sb7.vis &
+
+wait
+
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4100 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4101 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4102 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4103 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4104 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4105 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4106 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4107 null: ; done &
+
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4108 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4109 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4110 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4111 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4112 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4113 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4114 null: ; done &
+#while [ ! -f /tmp/stop ]; do udp-copy tcp:10.196.248.254:4115 null: ; done &

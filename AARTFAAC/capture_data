@@ -1,0 +1,13 @@
+#!/bin/bash
+
+sync
+date +%s
+date
+udp-copy -a 4-11,28-35 10.195.100.3:53268 /tmp/raw0 &
+udp-copy -a 4-11,28-35 10.195.100.3:53276 /tmp/raw1 &
+udp-copy -a 4-11,28-35 10.195.100.3:53284 /tmp/raw2 &
+udp-copy -a 4-11,28-35 10.195.100.3:53292 /tmp/raw3 &
+udp-copy -a 4-11,28-35 10.195.100.3:53300 /tmp/raw4 &
+udp-copy -a 4-11,28-35 10.195.100.3:53308 /tmp/raw5 &
+sleep 5
+killall -9 udp-copy
