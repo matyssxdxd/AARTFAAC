@@ -6,7 +6,7 @@
 #include "Common/ReaderWriterSynchronization.h"
 #include "Common/SparseSet.h"
 #include "Common/TimeStamp.h"
-
+#include "ISBI/VDIFStream.h"
 
 #include <boost/multi_array.hpp>
 
@@ -36,7 +36,7 @@ private:
     void inputThreadBody(), noInputThreadBody(), logThreadBody();
     std::function<std::ostream & (std::ostream &)> logMessage() const;
 
-    void handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket);
+    void handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream);
     SparseSet<TimeStamp> getCurrentValidData(const TimeStamp &earlyStartTime, const TimeStamp &endTime);
 
     const ISBI_Parset	&ps;

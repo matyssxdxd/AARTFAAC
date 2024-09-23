@@ -33,7 +33,7 @@ class InputSection
   private:
     std::vector<std::unique_ptr<InputBuffer>> inputBuffers;
     unsigned nrRingBufferSamplesPerSubband;
-    const static unsigned nrTimesPerPacket = 2;
+    const static unsigned nrTimesPerPacket = 1;
 
 
 };

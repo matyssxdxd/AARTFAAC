@@ -140,10 +140,52 @@ InputBuffer::~InputBuffer()
   inputThread.join();
 }
 
-void InputBuffer::handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket){
-      std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
+void InputBuffer::handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream) {
+	TimeStamp beginTime(vdifStream->get_current_timestamp(), 1);
 
+	std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
+
+	if (beginTime >= latestWriteTime) {
+		unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
+		unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
+		TimeStamp endTime(beginTime + myNrTimes);
+
+		latestWriteTime = endTime;
+		readerAndWriterSynchronization.startWrite(beginTime, endTime);
+
+		size_t size = myNrStations * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
+
+		for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
+			const uint32_t *payLoad = &packetBuffer[packet][0][16];
+
+			for (unsigned time = 0; time < nrTimesPerPacket; ++time) {
+				for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
+					const uint32_t *readPtr = &payLoad[(time * myNrSubbands + subband) * (size / sizeof(uint32_t))];
+					char *writePtr = hostRingBuffer[subband][timeIndex][myFirstStation].origin();
+
+					//assert(writePtr + size <= hostRingBuffer.origin() + hostRingBuffer.num_elements());
+
+					uncached_memcpy(writePtr, readPtr, size);
+			}
+
+			if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
+		}
+	}
+	
+	{
+		std::lock_guard<std::mutex> lock(validDataMutex);
+		validData.exclude(TimeStamp(0, ps.clockSpeed()), endTime - nrRingBufferSamplesPerSubband);
+		const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
+
+		if (ranges.size() < 16 || ranges.back().end == beginTime) {
+		validData.include(beginTime, endTime);
+		}
+	}
+
+	readerAndWriterSynchronization.finishedWrite(endTime);
 }
+}
+
 
 
 
@@ -216,10 +258,10 @@ void InputBuffer::inputThreadBody(){
            
            //std::cout << " timeStamp " << timeStamp << " vdifStream->get_current_timestamp() " << vdifStream->get_current_timestamp() << std::endl;
            
-          //std::cout << "expectedTimeStamp " << expectedTimeStamp -2  << " timeStamp " << timeStamp << endl;
-           if (timeStamp != expectedTimeStamp -2) {
+          //std::cout << "expectedTimeStamp " << expectedTimeStamp  << " timeStamp " << timeStamp << endl;
+           if (timeStamp != expectedTimeStamp) {
 	    if (firstPacket < nextPacket){
-	    	    handleConsecutivePackets(frame, firstPacket, nextPacket);
+	    	    handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);
 	    }
 	    
 	    if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
@@ -246,7 +288,7 @@ void InputBuffer::inputThreadBody(){
       //std::cout << "firstPacket " << firstPacket  << " nextPacket " << nextPacket << endl;
    
       if (firstPacket < nextPacket){
-	handleConsecutivePackets(frame, firstPacket, nextPacket);
+	handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);
       }
   
   //#endif
