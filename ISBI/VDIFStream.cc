@@ -85,8 +85,8 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t frame[][1][16
     
     file.close();
 
-    for (size_t i = 0; i < samples_per_frame; ++i) {
-	uint64_t sample_time = header.sec_from_epoch * 1000000000 + 1;
+    for (uint32_t i = 0; i < samples_per_frame; ++i) {
+	uint64_t sample_time = header.sec_from_epoch * 1000000000 + i;
     	sample_time_stamps[i] = sample_time;
     }
 
