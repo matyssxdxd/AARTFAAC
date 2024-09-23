@@ -141,9 +141,8 @@ InputBuffer::~InputBuffer()
 }
 
 void InputBuffer::handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream) {
-	TimeStamp beginTime(vdifStream->get_current_timestamp(), 1);
-
-	std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
+	TimeStamp beginTime(vdifStream->get_current_timestamp(), ps.clockSpeed());
+std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 	if (beginTime >= latestWriteTime) {
 		unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
@@ -238,7 +237,7 @@ void InputBuffer::inputThreadBody(){
   do {
    //#if defined USE_RECVMMSG  
       try {
-	    for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++){
+	    for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer ; nrPackets ++){
 	        vdifStream->read(frame, data_frame_size);
 	    }  
       }
@@ -263,7 +262,7 @@ void InputBuffer::inputThreadBody(){
 	    if (firstPacket < nextPacket){
 	    	    handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);
 	    }
-	    
+
 	    if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
 	        if (!printedImpossibleTimeStampWarning) {
 	          printedImpossibleTimeStampWarning = true;

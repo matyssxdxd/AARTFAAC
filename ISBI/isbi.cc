@@ -57,7 +57,7 @@ int main(int argc, char **argv){
     ISBI_Parset ps(argc, argv);
     printSettings(ps);
    
-    ISBI_CorrelatorPipeline correlatorPipeline (ps);
+    //ISBI_CorrelatorPipeline correlatorPipeline (ps);
     InputSection inputSection(ps);
     inputSection.startReadTransaction(ps.startTime());
    
