@@ -52,7 +52,10 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
     
     file.seekg(flag, std::ios::beg);
     file.read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader));
-    
+
+    if (file.peek() == EOF) {
+	throw EndOfStreamException("readVDIFHeader");
+    }	
 
     if (!file) {
         std::cerr << "Failed to read header from file: " << filePath << std::endl;
@@ -78,6 +81,10 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t frame[][1][16
     size_t dataSize = samples_per_frame * 1 * 16 * sizeof(uint32_t);
     file.read(reinterpret_cast<char*>(frame), dataSize);
 
+    if (file.peek() == EOF) {
+	throw EndOfStreamException("readVDIFData");
+    }
+
     if (!file) {
         std::cerr << "Failed to read data from file: " << filePath << std::endl;
         return false;
@@ -85,10 +92,6 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t frame[][1][16
     
     file.close();
 
-    for (uint32_t i = 0; i < samples_per_frame; ++i) {
-	uint64_t sample_time = header.sec_from_epoch * 1000000000 + i;
-    	sample_time_stamps[i] = sample_time;
-    }
 
     return true;
 }
@@ -127,6 +130,10 @@ void VDIFStream::read(void *ptr, size_t size){
 
     readVDIFData(get_input_file(), reinterpret_cast<uint32_t (*)[1][16]>(ptr),  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
    
+    for (uint32_t i = 0; i < samples_per_frame; ++i) {
+	uint32_t sample_time = header_for_frame.sec_from_epoch * 1000000000 + i;
+    	sample_timestamps[i] = sample_time;
+    }
     //printFirstRow(frame, samples_per_frame);
     //exit(0);
 

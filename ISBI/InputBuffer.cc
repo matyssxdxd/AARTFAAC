@@ -141,7 +141,7 @@ InputBuffer::~InputBuffer()
 }
 
 void InputBuffer::handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream) {
-	TimeStamp beginTime(vdifStream->get_current_timestamp(), ps.clockSpeed());
+	TimeStamp beginTime(vdifStream->get_current_timestamp(), 1);
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 	if (beginTime >= latestWriteTime) {
@@ -177,7 +177,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 		const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
 
 		if (ranges.size() < 16 || ranges.back().end == beginTime) {
-		validData.include(beginTime, endTime);
+			validData.include(beginTime, endTime);
 		}
 	}
 
@@ -205,7 +205,6 @@ void InputBuffer::inputThreadBody(){
    assert(vdifStream != nullptr);
    
    std::cout << "ps.inputDescriptors() " << std::endl;
-
   
   int data_frame_size = vdifStream->get_data_frame_size();
   uint8_t log2_nchan = vdifStream->get_log2_nchan();
@@ -216,11 +215,11 @@ void InputBuffer::inputThreadBody(){
   std::cout << "samples_per_frame " << samples_per_frame  << std::endl;
   std::cout << "nr_channels " << nr_channels  << std::endl; 
   
-  uint32_t (*frame)[1][16] = new uint32_t[samples_per_frame][1][16];
-  
+  uint32_t (*frame)[1][16] = new uint32_t[samples_per_frame][1][16]; 
+
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
-  TimeStamp timeStamp(0, 1);
+  TimeStamp timeStamp(0, ps.clockSpeed());
 
   #if defined USE_RECVMMSG
     struct iovec   iovecs[maxNrPacketsInBuffer];
@@ -253,11 +252,11 @@ void InputBuffer::inputThreadBody(){
       }*/
        
       for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
-	   timeStamp = vdifStream->get_current_timestamp();
-           
+	  timeStamp = vdifStream->get_current_timestamp();
+  	
            //std::cout << " timeStamp " << timeStamp << " vdifStream->get_current_timestamp() " << vdifStream->get_current_timestamp() << std::endl;
            
-          //std::cout << "expectedTimeStamp " << expectedTimeStamp  << " timeStamp " << timeStamp << endl;
+         // std::cout << "expectedTimeStamp " << expectedTimeStamp  << " timeStamp " << timeStamp << endl;
            if (timeStamp != expectedTimeStamp) {
 	    if (firstPacket < nextPacket){
 	    	    handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);

@@ -59,7 +59,7 @@ public:
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag);
     bool       readVDIFData(const std::string filePath, uint32_t frame[][1][16], size_t samples_per_frame,  int flag);
-   uint64_t sample_time_stamps[2000]; // samples_per_frame size
+   uint32_t sample_timestamps[2000]; // samples_per_frame size
 
    void print_vdif_header(VDIFHeader header_);
    
