@@ -38,6 +38,8 @@ private:
         //FileStream *in_stream;
 
 	VDIFHeader header;
+	VDIFHeader firstHeader;
+	VDIFHeader currentHeader;
 	int data_frame_size;
 	int samples_per_frame;
 	int number_of_headers;
@@ -49,8 +51,8 @@ private:
 	
 public:
      VDIFStream(string input_file);
-    void       read(void *ptr, size_t size);
-
+     uint64_t currentSampleTimestamp;
+     void read(uint32_t (*frame)[1][16], size_t size);
     void       get_vdif_header();
     void       print_vdif_header();
     int        get_data_frame_size();
@@ -59,7 +61,6 @@ public:
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag);
     bool       readVDIFData(const std::string filePath, uint32_t frame[][1][16], size_t samples_per_frame,  int flag);
-   uint32_t sample_timestamps[2000]; // samples_per_frame size
 
    void print_vdif_header(VDIFHeader header_);
    

@@ -141,7 +141,7 @@ InputBuffer::~InputBuffer()
 }
 
 void InputBuffer::handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream) {
-	TimeStamp beginTime(vdifStream->get_current_timestamp(), 1);
+	TimeStamp beginTime = TimeStamp(vdifStream->get_current_timestamp(), 1);
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 	if (beginTime >= latestWriteTime) {
@@ -252,8 +252,7 @@ void InputBuffer::inputThreadBody(){
       }*/
        
       for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
-	  timeStamp = vdifStream->get_current_timestamp();
-  	
+	  timeStamp = TimeStamp(vdifStream->get_current_timestamp(), 1);
            //std::cout << " timeStamp " << timeStamp << " vdifStream->get_current_timestamp() " << vdifStream->get_current_timestamp() << std::endl;
            
          // std::cout << "expectedTimeStamp " << expectedTimeStamp  << " timeStamp " << timeStamp << endl;

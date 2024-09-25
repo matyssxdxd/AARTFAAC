@@ -19,21 +19,20 @@ using namespace std;
 
 VDIFStream::VDIFStream(string input_file) {
     samples_per_frame = 2000;
-    number_of_headers = 1;
+    number_of_headers = 0;
     number_of_frames = 0;    
     input_file_ = input_file;
     
-    bool read_vdif = readVDIFHeader(input_file, header, 0);
+    bool read_vdif = readVDIFHeader(input_file, firstHeader, 0);
 
     if (read_vdif) {
         print_vdif_header();
-        data_frame_size = static_cast<int>(header.dataframe_length) * 8 - 32 +  16 * static_cast<int>(header.legacy_mode);
-        current_timestamp = header.sec_from_epoch;
-
+	data_frame_size = static_cast<int>(firstHeader.dataframe_length) * 8 - 32 +  16 * static_cast<int>(firstHeader.legacy_mode);
+       	current_timestamp = firstHeader.sec_from_epoch;
+	currentSampleTimestamp = static_cast<uint64_t>(firstHeader.sec_from_epoch) * 1000000000;
     }else {
         std::cerr << "Error reading VDIF header." << std::endl;
     }
-
 }
 
     size_t VDIFStream::tryWrite(const void *ptr, size_t size){ return 0;}
@@ -44,7 +43,7 @@ string VDIFStream::get_input_file(){ return   input_file_;  }
 
 
 bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag) {
-    std::ifstream file(filePath, std::ios::binary);
+	std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filePath << std::endl;
         return false;
@@ -67,8 +66,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, uint32_t frame[][1][16], size_t samples_per_frame,  int flag) {
-   // cout<< "flag " << flag << endl;
+bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][16], size_t samples_per_frame,  int flag) {
 
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
@@ -91,9 +89,6 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t frame[][1][16
     }
     
     file.close();
-
-
-    return true;
 }
 
 
@@ -122,25 +117,31 @@ void VDIFStream::printFirstRow(uint32_t (*frame)[1][16], size_t samples_per_fram
 }
 
 
-void VDIFStream::read(void *ptr, size_t size){
-    VDIFHeader header_for_frame;    
-        
-    readVDIFHeader(get_input_file(), header_for_frame, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
-    
+void VDIFStream::read(uint32_t (*frame)[1][16], size_t size){
+    readVDIFHeader(get_input_file(), currentHeader, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
 
-    readVDIFData(get_input_file(), reinterpret_cast<uint32_t (*)[1][16]>(ptr),  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
-   
-    for (uint32_t i = 0; i < samples_per_frame; ++i) {
-	uint32_t sample_time = header_for_frame.sec_from_epoch * 1000000000 + i;
-    	sample_timestamps[i] = sample_time;
+    number_of_headers += 1;
+
+    if (currentHeader.dataframe_in_second == 0) {
+	    currentSampleTimestamp = static_cast<uint64_t>(currentHeader.sec_from_epoch) * 1000000000;
     }
-    //printFirstRow(frame, samples_per_frame);
-    //exit(0);
 
-    current_timestamp = header_for_frame.sec_from_epoch;
+    readVDIFData(get_input_file(), frame,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
     
-    number_of_headers +=1;
-    number_of_frames +=1;
+    number_of_frames += 1;
+
+    uint64_t* sampleTimestamps = new uint64_t[samples_per_frame];
+
+    for (unsigned i = 1; i < samples_per_frame; ++i) {
+    	sampleTimestamps[i - 1] = ++currentSampleTimestamp; 
+    }
+
+    std::cout << "firstTimestamp - " << sampleTimestamps[0] << "\nlastTimestamp - " << sampleTimestamps[samples_per_frame - 1] << "\n"; 
+
+    current_timestamp = currentHeader.sec_from_epoch;
+
+    delete[] sampleTimestamps;
+
 
 }
 
@@ -166,23 +167,23 @@ uint32_t VDIFStream::get_current_timestamp(){
 
 void VDIFStream::print_vdif_header() {
         std::cout << "VDIF Header read successfully:" << std::endl;
-        std::cout << "sec_from_epoch: " << header.sec_from_epoch << std::endl;
-        std::cout << "legacy_mode: " << static_cast<int>(header.legacy_mode) << std::endl;
-        std::cout << "invalid: " << static_cast<int>(header.invalid) << std::endl;
-        std::cout << "dataframe_in_second: " << header.dataframe_in_second << std::endl;
-        std::cout << "ref_epoch: " << static_cast<int>(header.ref_epoch) << std::endl;
-        std::cout << "dataframe_length: " << header.dataframe_length << std::endl;
-        std::cout << "log2_nchan: " << static_cast<int>(header.log2_nchan) << std::endl;
-        std::cout << "version: " << static_cast<int>(header.version) << std::endl;
-        std::cout << "station_id: " << header.station_id << std::endl;
-        std::cout << "thread_id: " << header.thread_id << std::endl;
-        std::cout << "bits_per_sample: " << static_cast<int>(header.bits_per_sample) << std::endl;
-        std::cout << "data_type: " << static_cast<int>(header.data_type) << std::endl;
-        std::cout << "user_data1: " << header.user_data1 << std::endl;
-        std::cout << "edv: " << static_cast<int>(header.edv) << std::endl;
-        std::cout << "user_data2: " << header.user_data2 << std::endl;
-        std::cout << "user_data3: " << header.user_data3 << std::endl;
-        std::cout << "user_data4: " << header.user_data4 << std::endl;
+        std::cout << "sec_from_epoch: " << firstHeader.sec_from_epoch << std::endl;
+        std::cout << "legacy_mode: " << static_cast<int>(firstHeader.legacy_mode) << std::endl;
+        std::cout << "invalid: " << static_cast<int>(firstHeader.invalid) << std::endl;
+        std::cout << "dataframe_in_second: " << firstHeader.dataframe_in_second << std::endl;
+        std::cout << "ref_epoch: " << static_cast<int>(firstHeader.ref_epoch) << std::endl;
+        std::cout << "dataframe_length: " << firstHeader.dataframe_length << std::endl;
+        std::cout << "log2_nchan: " << static_cast<int>(firstHeader.log2_nchan) << std::endl;
+        std::cout << "version: " << static_cast<int>(firstHeader.version) << std::endl;
+        std::cout << "station_id: " << firstHeader.station_id << std::endl;
+        std::cout << "thread_id: " << firstHeader.thread_id << std::endl;
+        std::cout << "bits_per_sample: " << static_cast<int>(firstHeader.bits_per_sample) << std::endl;
+        std::cout << "data_type: " << static_cast<int>(firstHeader.data_type) << std::endl;
+        std::cout << "user_data1: " << firstHeader.user_data1 << std::endl;
+        std::cout << "edv: " << static_cast<int>(firstHeader.edv) << std::endl;
+        std::cout << "user_data2: " << firstHeader.user_data2 << std::endl;
+        std::cout << "user_data3: " << firstHeader.user_data3 << std::endl;
+        std::cout << "user_data4: " << firstHeader.user_data4 << std::endl;
 }
 
 
