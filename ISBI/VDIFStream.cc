@@ -66,7 +66,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][16], size_t samples_per_frame,  int flag) {
+bool VDIFStream::readVDIFData(const std::string filePath, uint32_t frame[][1][16], size_t samples_per_frame,  int flag) {
 
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
@@ -89,6 +89,7 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][1
     }
     
     file.close();
+    return true;
 }
 
 
@@ -132,8 +133,9 @@ void VDIFStream::read(uint32_t (*frame)[1][16], size_t size){
 
     uint64_t* sampleTimestamps = new uint64_t[samples_per_frame];
 
-    for (unsigned i = 1; i < samples_per_frame; ++i) {
-    	sampleTimestamps[i - 1] = ++currentSampleTimestamp; 
+    for (unsigned i = 0; i < samples_per_frame; ++i) {
+    	sampleTimestamps[i] = currentSampleTimestamp;
+       	currentSampleTimestamp += 1;	
     }
 
     std::cout << "firstTimestamp - " << sampleTimestamps[0] << "\nlastTimestamp - " << sampleTimestamps[samples_per_frame - 1] << "\n"; 
@@ -142,7 +144,9 @@ void VDIFStream::read(uint32_t (*frame)[1][16], size_t size){
 
     delete[] sampleTimestamps;
 
-
+    if (currentHeader.dataframe_in_second == 1) {
+   	exit(1);
+    }
 }
 
 
