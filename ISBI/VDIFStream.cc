@@ -138,15 +138,12 @@ void VDIFStream::read(uint32_t (*frame)[1][16], size_t size){
        	currentSampleTimestamp += 1;	
     }
 
-    std::cout << "firstTimestamp - " << sampleTimestamps[0] << "\nlastTimestamp - " << sampleTimestamps[samples_per_frame - 1] << "\n"; 
+//    std::cout << "firstTimestamp - " << sampleTimestamps[0] << "\nlastTimestamp - " << sampleTimestamps[samples_per_frame - 1] << "\n"; 
 
     current_timestamp = currentHeader.sec_from_epoch;
 
     delete[] sampleTimestamps;
 
-    if (currentHeader.dataframe_in_second == 1) {
-   	exit(1);
-    }
 }
 
 
