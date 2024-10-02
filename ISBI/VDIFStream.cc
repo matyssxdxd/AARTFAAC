@@ -131,18 +131,12 @@ void VDIFStream::read(uint32_t (*frame)[1][16], size_t size){
     
     number_of_frames += 1;
 
-    uint64_t* sampleTimestamps = new uint64_t[samples_per_frame];
-
-    for (unsigned i = 0; i < samples_per_frame; ++i) {
-    	sampleTimestamps[i] = currentSampleTimestamp;
-       	currentSampleTimestamp += 1;	
-    }
+    currentSampleTimestamp += 125000;
 
 //    std::cout << "firstTimestamp - " << sampleTimestamps[0] << "\nlastTimestamp - " << sampleTimestamps[samples_per_frame - 1] << "\n"; 
 
     current_timestamp = currentHeader.sec_from_epoch;
 
-    delete[] sampleTimestamps;
 
 }
 
