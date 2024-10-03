@@ -8,6 +8,7 @@
 #include "Common/Stream/FileStream.h"
 
 #include "VDIFStream.h"
+#include "ISBI/Frame.h"
 
 #include <cstdint>
 #include <cstring>
@@ -118,26 +119,20 @@ void VDIFStream::printFirstRow(uint32_t (*frame)[1][16], size_t samples_per_fram
 }
 
 
-void VDIFStream::read(uint32_t (*frame)[1][16], size_t size){
+void VDIFStream::read(Frame &frame){
     readVDIFHeader(get_input_file(), currentHeader, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
 
     number_of_headers += 1;
 
-    if (currentHeader.dataframe_in_second == 0) {
-	    currentSampleTimestamp = static_cast<uint64_t>(currentHeader.sec_from_epoch) * 1000000000;
-    }
 
-    readVDIFData(get_input_file(), frame,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
+    readVDIFData(get_input_file(), frame.dataArray,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
     
     number_of_frames += 1;
 
-    currentSampleTimestamp += 125000;
-
-//    std::cout << "firstTimestamp - " << sampleTimestamps[0] << "\nlastTimestamp - " << sampleTimestamps[samples_per_frame - 1] << "\n"; 
+    // What I'm doing here is taking seconds from epoch, multiplying it by 1000000000 to get nanoseconds and adding frame number in second times samples per frame (2000) times 62.5 nanoseconds.
+    frame.timeStamp  = static_cast<uint64_t>(currentHeader.sec_from_epoch) * 1000000000 + currentHeader.dataframe_in_second * 125000;
 
     current_timestamp = currentHeader.sec_from_epoch;
-
-
 }
 
 

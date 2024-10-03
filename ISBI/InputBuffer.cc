@@ -4,6 +4,7 @@
 
 #include "ISBI/InputBuffer.h"
 #include "ISBI/VDIFStream.h"
+#include "ISBI/Frame.h"
 
 #include <byteswap.h>
 #include <omp.h>
@@ -140,8 +141,8 @@ InputBuffer::~InputBuffer()
   inputThread.join();
 }
 
-void InputBuffer::handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream) {
-	TimeStamp beginTime = TimeStamp(vdifStream->currentSampleTimestamp, 1);
+void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuffer], unsigned firstPacket, unsigned lastPacket) {
+	TimeStamp beginTime = packetBuffer[firstPacket].timeStamp;
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 	if (beginTime >= latestWriteTime) {
@@ -155,7 +156,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 		size_t size = myNrStations * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
 
 		for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
-			const uint32_t *payLoad = &packetBuffer[packet][0][16];
+			const uint32_t *payLoad = &packetBuffer[packet].dataArray[0][0][0];
 
 			for (unsigned time = 0; time < nrTimesPerPacket; ++time) {
 				for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
@@ -215,11 +216,11 @@ void InputBuffer::inputThreadBody(){
   std::cout << "samples_per_frame " << samples_per_frame  << std::endl;
   std::cout << "nr_channels " << nr_channels  << std::endl; 
   
-  uint32_t (*frame)[1][16] = new uint32_t[samples_per_frame][1][16]; 
+  Frame *frames = new Frame[maxNrPacketsInBuffer];
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
-  TimeStamp timeStamp(0, ps.clockSpeed());
+  TimeStamp timeStamp(0, 1); 
 
   #if defined USE_RECVMMSG
     struct iovec   iovecs[maxNrPacketsInBuffer];
@@ -237,7 +238,7 @@ void InputBuffer::inputThreadBody(){
    //#if defined USE_RECVMMSG  
       try {
 	    for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer ; nrPackets ++){
-	        vdifStream->read(frame, data_frame_size);
+	        vdifStream->read(frames[nrPackets]);
 	    }  
       }
       catch (Stream::EndOfStreamException) {
@@ -251,14 +252,14 @@ void InputBuffer::inputThreadBody(){
 	  throw;
       }*/
        
+      
       for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
-	  timeStamp = TimeStamp(vdifStream->currentSampleTimestamp, 1);
-           //std::cout << " timeStamp " << timeStamp << " vdifStream->get_current_timestamp() " << vdifStream->get_current_timestamp() << std::endl;
-           
+	  timeStamp = frames[nextPacket].timeStamp;
+	 // std::cout << "timeStamp - " << timeStamp << "\n expectedTimeStamp - " << expectedTimeStamp << "\n"; 
          // std::cout << "expectedTimeStamp " << expectedTimeStamp  << " timeStamp " << timeStamp << endl;
            if (timeStamp != expectedTimeStamp) {
 	    if (firstPacket < nextPacket){
-	    	    handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);
+	    	    handleConsecutivePackets(frames, firstPacket, nextPacket);
 	    }
 
 	    if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
@@ -285,7 +286,7 @@ void InputBuffer::inputThreadBody(){
       //std::cout << "firstPacket " << firstPacket  << " nextPacket " << nextPacket << endl;
    
       if (firstPacket < nextPacket){
-	handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);
+	handleConsecutivePackets(frames, firstPacket, nextPacket);
       }
   
   //#endif
