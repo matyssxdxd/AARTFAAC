@@ -148,7 +148,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 	if (beginTime >= latestWriteTime) {
 		unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
 		unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
-		TimeStamp endTime(beginTime + myNrTimes);
+		TimeStamp endTime(beginTime + myNrTimes * 125000);
 
 		latestWriteTime = endTime;
 		readerAndWriterSynchronization.startWrite(beginTime, endTime);
@@ -160,7 +160,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 			for (unsigned time = 0; time < nrTimesPerPacket; ++time) {
 				for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
-					const uint32_t *readPtr = &payLoad[(time * myNrSubbands + subband) * (size / sizeof(uint32_t))];
+					const uint32_t *readPtr = &payLoad[(time * myNrSubbands + subband) * size]; 
 					char *writePtr = hostRingBuffer[subband][timeIndex][myFirstStation].origin();
 
 					//assert(writePtr + size <= hostRingBuffer.origin() + hostRingBuffer.num_elements());
@@ -174,7 +174,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 	
 	{
 		std::lock_guard<std::mutex> lock(validDataMutex);
-		validData.exclude(TimeStamp(0, ps.clockSpeed()), endTime - nrRingBufferSamplesPerSubband);
+		validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband);
 		const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
 
 		if (ranges.size() < 16 || ranges.back().end == beginTime) {
@@ -279,7 +279,7 @@ void InputBuffer::inputThreadBody(){
 
 	   }
            
-	   expectedTimeStamp = timeStamp + nrTimesPerPacket;
+	   expectedTimeStamp = timeStamp + nrTimesPerPacket * 125000;
 
       }
       
