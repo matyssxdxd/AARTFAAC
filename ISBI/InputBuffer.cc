@@ -141,15 +141,15 @@ InputBuffer::~InputBuffer()
   inputThread.join();
 }
 
-void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuffer], unsigned firstPacket, unsigned lastPacket) {
-	TimeStamp beginTime = packetBuffer[firstPacket].timeStamp;
+void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuffer], unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
+	TimeStamp beginTime = epoch + packetBuffer[firstPacket].timeStamp;
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 	if (beginTime >= latestWriteTime) {
 		unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
 		unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
-		TimeStamp endTime(beginTime + myNrTimes * 125000);
-
+		TimeStamp endTime(beginTime + myNrTimes * 125);
+		
 		latestWriteTime = endTime;
 		readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
@@ -205,6 +205,7 @@ void InputBuffer::inputThreadBody(){
    VDIFStream * vdifStream = new  VDIFStream (ps.inputDescriptors()[1 / myNrStations]); 
    assert(vdifStream != nullptr);
    
+   TimeStamp epoch = ps.startTime() - static_cast<uint64_t>(vdifStream->get_current_timestamp()) * 1000000;
    std::cout << "ps.inputDescriptors() " << std::endl;
   
   int data_frame_size = vdifStream->get_data_frame_size();
@@ -254,12 +255,10 @@ void InputBuffer::inputThreadBody(){
        
       
       for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
-	  timeStamp = frames[nextPacket].timeStamp;
-	 // std::cout << "timeStamp - " << timeStamp << "\n expectedTimeStamp - " << expectedTimeStamp << "\n"; 
-         // std::cout << "expectedTimeStamp " << expectedTimeStamp  << " timeStamp " << timeStamp << endl;
-           if (timeStamp != expectedTimeStamp) {
+	  timeStamp = epoch + frames[nextPacket].timeStamp;
+	  if (timeStamp != expectedTimeStamp) {
 	    if (firstPacket < nextPacket){
-	    	    handleConsecutivePackets(frames, firstPacket, nextPacket);
+	    	    handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
 	    }
 
 	    if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
@@ -279,14 +278,13 @@ void InputBuffer::inputThreadBody(){
 
 	   }
            
-	   expectedTimeStamp = timeStamp + nrTimesPerPacket * 125000;
+	   expectedTimeStamp = timeStamp + nrTimesPerPacket * 125;
 
       }
       
-      //std::cout << "firstPacket " << firstPacket  << " nextPacket " << nextPacket << endl;
    
       if (firstPacket < nextPacket){
-	handleConsecutivePackets(frames, firstPacket, nextPacket);
+	handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
       }
   
   //#endif

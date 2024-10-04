@@ -30,7 +30,6 @@ VDIFStream::VDIFStream(string input_file) {
         print_vdif_header();
 	data_frame_size = static_cast<int>(firstHeader.dataframe_length) * 8 - 32 +  16 * static_cast<int>(firstHeader.legacy_mode);
        	current_timestamp = firstHeader.sec_from_epoch;
-	currentSampleTimestamp = static_cast<uint64_t>(firstHeader.sec_from_epoch) * 1000000000;
     }else {
         std::cerr << "Error reading VDIF header." << std::endl;
     }
@@ -67,7 +66,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, uint32_t frame[][1][16], size_t samples_per_frame,  int flag) {
+bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][16], size_t samples_per_frame,  int flag) {
 
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
@@ -130,7 +129,7 @@ void VDIFStream::read(Frame &frame){
     number_of_frames += 1;
 
     // What I'm doing here is taking seconds from epoch, multiplying it by 1000000000 to get nanoseconds and adding frame number in second times samples per frame (2000) times 62.5 nanoseconds.
-    frame.timeStamp  = static_cast<uint64_t>(currentHeader.sec_from_epoch) * 1000000000 + currentHeader.dataframe_in_second * 125000;
+    frame.timeStamp  = static_cast<uint64_t>(currentHeader.sec_from_epoch) * 1000000 + currentHeader.dataframe_in_second * 125;
 
     current_timestamp = currentHeader.sec_from_epoch;
 }

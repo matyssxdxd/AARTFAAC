@@ -19,7 +19,7 @@ TimeStamp TimeStamp::fromDate(const char *date, unsigned clockSpeed)
 #else
   std::tm tm = {};
   strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
-  return TimeStamp((uint64_t) mktime(&tm) * 1000000000, 1);
+  return TimeStamp((uint64_t) mktime(&tm) * 1000000, clockSpeed);
 #endif
 }
 
@@ -32,7 +32,7 @@ TimeStamp TimeStamp::now(unsigned clockSpeed)
     throw SystemCallException("gettimeofday", errno);
 
   double time = tv.tv_sec + tv.tv_usec * 1e-6;
-  return TimeStamp(time * clockSpeed / 1024, clockSpeed);
+  return TimeStamp(time * clockSpeed / 4, clockSpeed);
 }
 
 
