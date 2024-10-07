@@ -57,12 +57,12 @@ int main(int argc, char **argv){
     ISBI_Parset ps(argc, argv);
     printSettings(ps);
    
-   // ISBI_CorrelatorPipeline correlatorPipeline (ps);
-   InputSection inputSection(ps);
-   inputSection.startReadTransaction(ps.startTime());
+   ISBI_CorrelatorPipeline correlatorPipeline (ps);
+   //InputSection inputSection(ps);
+   //inputSection.startReadTransaction(ps.startTime());
    
     //correlatorPipeline.startReadTransaction(ps.startTime());
-    //correlatorPipeline.doWork();
+   correlatorPipeline.doWork();
     ///std::clog<<"size is " << sizeof (ISBI_CorrelatorPipeline) << std::endl;
       
     #if !defined CREATE_BACKTRACE_ON_EXCEPTION

@@ -145,11 +145,12 @@ void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuff
 	TimeStamp beginTime = epoch + packetBuffer[firstPacket].timeStamp;
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
+
 	if (beginTime >= latestWriteTime) {
 		unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
-		unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
-		TimeStamp endTime(beginTime + myNrTimes * 125);
-		
+		unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket * 125;
+		TimeStamp endTime(beginTime + myNrTimes);
+	
 		latestWriteTime = endTime;
 		readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
@@ -158,7 +159,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 		for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
 			const uint32_t *payLoad = &packetBuffer[packet].dataArray[0][0][0];
 
-			for (unsigned time = 0; time < nrTimesPerPacket; ++time) {
+			for (unsigned time = 0; time < nrTimesPerPacket * 1000000; ++time) {
 				for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
 					const uint32_t *readPtr = &payLoad[(time * myNrSubbands + subband) * size]; 
 					char *writePtr = hostRingBuffer[subband][timeIndex][myFirstStation].origin();
@@ -174,7 +175,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 	
 	{
 		std::lock_guard<std::mutex> lock(validDataMutex);
-		validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband);
+		validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband * 1000000);
 		const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
 
 		if (ranges.size() < 16 || ranges.back().end == beginTime) {
@@ -190,7 +191,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 
 void InputBuffer::inputThreadBody(){
-    TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubband();
+    TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubband() * 1000000;
     
     #if defined FAKE_TIMES
       //expectedTimeStamp = ps.startTime() - nrHistorySamples - 20;
@@ -257,7 +258,7 @@ void InputBuffer::inputThreadBody(){
       for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
 	  timeStamp = epoch + frames[nextPacket].timeStamp;
 	  if (timeStamp != expectedTimeStamp) {
-	    if (firstPacket < nextPacket){
+	    if (firstPacket < nextPacket) {
 	    	    handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
 	    }
 
@@ -286,10 +287,10 @@ void InputBuffer::inputThreadBody(){
       if (firstPacket < nextPacket){
 	handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
       }
-  
+ 
   //#endif
   } while (timeStamp < stopTime && !stop && !signalCaught);
-   
+
   readerAndWriterSynchronization.noMoreWriting();
 
   #if !defined CREATE_BACKTRACE_ON_EXCEPTION
@@ -408,8 +409,8 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
-  TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
+  TimeStamp earlyStartTime   = startTime - nrHistorySamples * 1000000;
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband() * 1000000;
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
 }
@@ -417,9 +418,9 @@ void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 
 void InputBuffer::endReadTransaction(const TimeStamp &startTime)
 {
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband() * 1000000;
 
-  readerAndWriterSynchronization.finishedRead(endTime - nrHistorySamples - 20);
+  readerAndWriterSynchronization.finishedRead(endTime - nrHistorySamples * 1000000 - 20 * 1000000);
 }
 
 
