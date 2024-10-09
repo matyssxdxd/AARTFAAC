@@ -71,6 +71,7 @@ public:
    size_t tryWrite(const void *ptr, size_t size);
    size_t tryRead(void *ptr, size_t size);
 
+   bool is_valid_header(const VDIFHeader& first_header, const VDIFHeader& current_header);
     ~VDIFStream() override;
 };
 

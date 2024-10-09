@@ -152,6 +152,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 		TimeStamp endTime(beginTime + myNrTimes);
 	
 		latestWriteTime = endTime;
+
 		readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
 		size_t size = myNrStations * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
@@ -175,7 +176,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 	
 	{
 		std::lock_guard<std::mutex> lock(validDataMutex);
-		validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband * 1000000);
+		validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband * 125);
 		const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
 
 		if (ranges.size() < 16 || ranges.back().end == beginTime) {
@@ -191,8 +192,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 
 void InputBuffer::inputThreadBody(){
-    TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubband() * 1000000;
-    
+    TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubband();
     #if defined FAKE_TIMES
       //expectedTimeStamp = ps.startTime() - nrHistorySamples - 20;
       expectedTimeStamp = TimeStamp::now(ps.clockSpeed()) - nrHistorySamples - 20;
@@ -254,14 +254,14 @@ void InputBuffer::inputThreadBody(){
 	  throw;
       }*/
        
-      
+     
       for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
 	  timeStamp = epoch + frames[nextPacket].timeStamp;
 	  if (timeStamp != expectedTimeStamp) {
 	    if (firstPacket < nextPacket) {
 	    	    handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
 	    }
-
+/*
 	    if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
 	        if (!printedImpossibleTimeStampWarning) {
 	          printedImpossibleTimeStampWarning = true;
@@ -276,9 +276,9 @@ void InputBuffer::inputThreadBody(){
             else{
 	    printedImpossibleTimeStampWarning = false;
 	    }
-
+*/
 	   }
-           
+
 	   expectedTimeStamp = timeStamp + nrTimesPerPacket * 125;
 
       }
@@ -409,8 +409,8 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
-  TimeStamp earlyStartTime   = startTime - nrHistorySamples * 1000000;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband() * 1000000;
+  TimeStamp earlyStartTime   = startTime - nrHistorySamples * 125;
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband() * 125;
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
 }
@@ -418,9 +418,9 @@ void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 
 void InputBuffer::endReadTransaction(const TimeStamp &startTime)
 {
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband() * 1000000;
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
 
-  readerAndWriterSynchronization.finishedRead(endTime - nrHistorySamples * 1000000 - 20 * 1000000);
+  readerAndWriterSynchronization.finishedRead(endTime - nrHistorySamples - 20);
 }
 
 

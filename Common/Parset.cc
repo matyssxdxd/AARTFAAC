@@ -201,7 +201,7 @@ Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
 
    handleSubbandsAndFrequencies();
   _startTime = providedStartTime != "" ? TimeStamp::fromDate(providedStartTime.c_str(), clockSpeed()) : TimeStamp::now(clockSpeed()) + 30 * subbandBandwidth();
- _stopTime  = _startTime + runTime * subbandBandwidth() * 1000000;
+ _stopTime  = _startTime + runTime * 10000000;
 }
 
 

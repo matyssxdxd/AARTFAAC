@@ -23,7 +23,7 @@ VDIFStream::VDIFStream(string input_file) {
     number_of_headers = 0;
     number_of_frames = 0;    
     input_file_ = input_file;
-    
+
     bool read_vdif = readVDIFHeader(input_file, firstHeader, 0);
 
     if (read_vdif) {
@@ -41,6 +41,18 @@ VDIFStream::VDIFStream(string input_file) {
 
 string VDIFStream::get_input_file(){ return   input_file_;  }
 
+bool VDIFStream::is_valid_header(const VDIFHeader& first_header, const VDIFHeader& current_header) {
+	if (first_header.legacy_mode != current_header.legacy_mode) return false;
+	if (first_header.ref_epoch != current_header.ref_epoch) return false;
+	if (first_header.dataframe_length != current_header.dataframe_length) return false;
+	if (first_header.log2_nchan != current_header.log2_nchan) return false;
+	if (first_header.version != current_header.version) return false;
+	if (first_header.station_id != current_header.station_id) return false;
+	if (first_header.bits_per_sample != current_header.bits_per_sample) return false;
+	if (first_header.data_type != current_header.data_type) return false;
+	return true;
+}
+
 
 bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag) {
 	std::ifstream file(filePath, std::ios::binary);
@@ -50,7 +62,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
     }
     
     file.seekg(flag, std::ios::beg);
-    file.read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader));
+    
 
     if (file.peek() == EOF) {
 	throw EndOfStreamException("readVDIFHeader");
