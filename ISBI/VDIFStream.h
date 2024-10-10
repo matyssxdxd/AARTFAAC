@@ -2,7 +2,8 @@
 #define RADIOBLOCKS_VDIFSTREAM_H
 
 #include "Common/Stream/FileStream.h"
-
+#include "ISBI/Frame.h"
+#include "ISBI/Sample.h"
 
 using namespace std;
 
@@ -52,7 +53,7 @@ private:
 public:
      VDIFStream(string input_file);
      uint64_t currentSampleTimestamp;
-     void read(uint32_t (*frame)[1][16], size_t size);
+     void read(Frame *frame, size_t size);
     void       get_vdif_header();
     void       print_vdif_header();
     int        get_data_frame_size();
@@ -60,7 +61,7 @@ public:
     int        get_samples_per_frame();
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag);
-    bool       readVDIFData(const std::string filePath, uint32_t frame[][1][16], size_t samples_per_frame,  int flag);
+    bool       readVDIFData(const std::string filePath, Sample *sample, size_t samples_per_frame,  int flag);
 
    void print_vdif_header(VDIFHeader header_);
    

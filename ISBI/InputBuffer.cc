@@ -4,6 +4,7 @@
 
 #include "ISBI/InputBuffer.h"
 #include "ISBI/VDIFStream.h"
+#include "ISBI/Frame.h"
 
 #include <byteswap.h>
 #include <omp.h>
@@ -140,8 +141,8 @@ InputBuffer::~InputBuffer()
   inputThread.join();
 }
 
-void InputBuffer::handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream) {
-	TimeStamp beginTime = TimeStamp(vdifStream->currentSampleTimestamp, 1);
+void InputBuffer::handleConsecutivePackets(Frame *frame, unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream) {
+/*	TimeStamp beginTime = TimeStamp(vdifStream->currentSampleTimestamp, 1);
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 	if (beginTime >= latestWriteTime) {
@@ -183,6 +184,7 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 	readerAndWriterSynchronization.finishedWrite(endTime);
 }
+*/
 }
 
 
@@ -215,7 +217,7 @@ void InputBuffer::inputThreadBody(){
   std::cout << "samples_per_frame " << samples_per_frame  << std::endl;
   std::cout << "nr_channels " << nr_channels  << std::endl; 
   
-  uint32_t (*frame)[1][16] = new uint32_t[samples_per_frame][1][16]; 
+  Frame *frames = new Frame[maxNrPacketsInBuffer];
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
@@ -237,7 +239,7 @@ void InputBuffer::inputThreadBody(){
    //#if defined USE_RECVMMSG  
       try {
 	    for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer ; nrPackets ++){
-	        vdifStream->read(frame, data_frame_size);
+	        vdifStream->read(&frames[nrPackets], data_frame_size);
 	    }  
       }
       catch (Stream::EndOfStreamException) {
@@ -258,7 +260,7 @@ void InputBuffer::inputThreadBody(){
          // std::cout << "expectedTimeStamp " << expectedTimeStamp  << " timeStamp " << timeStamp << endl;
            if (timeStamp != expectedTimeStamp) {
 	    if (firstPacket < nextPacket){
-	    	    handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);
+	    	    handleConsecutivePackets(&frames[nextPacket], firstPacket, nextPacket, vdifStream);
 	    }
 
 	    if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
@@ -285,7 +287,7 @@ void InputBuffer::inputThreadBody(){
       //std::cout << "firstPacket " << firstPacket  << " nextPacket " << nextPacket << endl;
    
       if (firstPacket < nextPacket){
-	handleConsecutivePackets(frame, firstPacket, nextPacket, vdifStream);
+	handleConsecutivePackets(&frames[nextPacket], firstPacket, nextPacket, vdifStream);
       }
   
   //#endif

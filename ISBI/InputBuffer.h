@@ -36,7 +36,7 @@ private:
     void inputThreadBody(), noInputThreadBody(), logThreadBody();
     std::function<std::ostream & (std::ostream &)> logMessage() const;
 
-    void handleConsecutivePackets(uint32_t packetBuffer[2000][1][16], unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream );
+    void handleConsecutivePackets(Frame *frame, unsigned firstPacket, unsigned lastPacket, VDIFStream* vdifStream );
     SparseSet<TimeStamp> getCurrentValidData(const TimeStamp &earlyStartTime, const TimeStamp &endTime);
 
     const ISBI_Parset	&ps;
