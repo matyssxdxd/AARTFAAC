@@ -19,7 +19,7 @@ TimeStamp TimeStamp::fromDate(const char *date, unsigned clockSpeed)
 #else
   std::tm tm = {};
   strptime(date, "%Y-%m-%d %H:%M:%S", &tm);
-  return TimeStamp((uint64_t) mktime(&tm) * 1000000, clockSpeed);
+  return TimeStamp((uint64_t) mktime(&tm), clockSpeed);
 #endif
 }
 

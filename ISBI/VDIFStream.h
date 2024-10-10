@@ -3,6 +3,7 @@
 
 #include "Common/Stream/FileStream.h"
 #include "ISBI/Frame.h"
+#include "Common/TimeStamp.h"
 
 using namespace std;
 
@@ -37,9 +38,8 @@ class VDIFStream : public Stream{
 private:
         //FileStream *in_stream;
 
-	VDIFHeader header;
-	VDIFHeader firstHeader;
-	VDIFHeader currentHeader;
+	VDIFHeader first_header;
+	VDIFHeader current_header;
 	int data_frame_size;
 	int samples_per_frame;
 	int number_of_headers;
@@ -51,7 +51,6 @@ private:
 	
 public:
      VDIFStream(string input_file);
-     uint64_t currentSampleTimestamp;
      void read(Frame &frame);
     void       get_vdif_header();
     void       print_vdif_header();
@@ -60,7 +59,7 @@ public:
     int        get_samples_per_frame();
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag);
-    bool       readVDIFData(const std::string filePath, uint32_t frame[][1][16], size_t samples_per_frame,  int flag);
+    bool       readVDIFData(const std::string filePath, uint32_t (*frame)[1][16], size_t samples_per_frame,  int flag);
 
    void print_vdif_header(VDIFHeader header_);
    

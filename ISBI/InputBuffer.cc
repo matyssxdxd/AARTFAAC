@@ -142,7 +142,7 @@ InputBuffer::~InputBuffer()
 }
 
 void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuffer], unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
-	TimeStamp beginTime = epoch + packetBuffer[firstPacket].timeStamp;
+/*	TimeStamp beginTime = epoch + packetBuffer[firstPacket].timeStamp;
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
 
@@ -185,7 +185,9 @@ std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 	}
 
 	readerAndWriterSynchronization.finishedWrite(endTime);
-}
+
+	}
+	*/
 }
 
 
@@ -255,13 +257,12 @@ void InputBuffer::inputThreadBody(){
       }*/
        
      
-      for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
+      /*for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
 	  timeStamp = epoch + frames[nextPacket].timeStamp;
 	  if (timeStamp != expectedTimeStamp) {
 	    if (firstPacket < nextPacket) {
 	    	    handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
 	    }
-/*
 	    if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
 	        if (!printedImpossibleTimeStampWarning) {
 	          printedImpossibleTimeStampWarning = true;
@@ -276,7 +277,7 @@ void InputBuffer::inputThreadBody(){
             else{
 	    printedImpossibleTimeStampWarning = false;
 	    }
-*/
+
 	   }
 
 	   expectedTimeStamp = timeStamp + nrTimesPerPacket * 125;
@@ -287,7 +288,7 @@ void InputBuffer::inputThreadBody(){
       if (firstPacket < nextPacket){
 	handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
       }
- 
+ */
   //#endif
   } while (timeStamp < stopTime && !stop && !signalCaught);
 

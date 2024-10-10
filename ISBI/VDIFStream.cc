@@ -24,12 +24,12 @@ VDIFStream::VDIFStream(string input_file) {
     number_of_frames = 0;    
     input_file_ = input_file;
 
-    bool read_vdif = readVDIFHeader(input_file, firstHeader, 0);
+    bool read_vdif = readVDIFHeader(input_file, first_header, 0);
 
     if (read_vdif) {
         print_vdif_header();
-	data_frame_size = static_cast<int>(firstHeader.dataframe_length) * 8 - 32 +  16 * static_cast<int>(firstHeader.legacy_mode);
-       	current_timestamp = firstHeader.sec_from_epoch;
+	data_frame_size = static_cast<int>(first_header.dataframe_length) * 8 - 32 +  16 * static_cast<int>(first_header.legacy_mode);
+       	current_timestamp = first_header.sec_from_epoch;
     }else {
         std::cerr << "Error reading VDIF header." << std::endl;
     }
@@ -62,7 +62,8 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
     }
     
     file.seekg(flag, std::ios::beg);
-    
+   
+   file.read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader)); 
 
     if (file.peek() == EOF) {
 	throw EndOfStreamException("readVDIFHeader");
@@ -89,17 +90,13 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][1
   
     file.seekg(flag, std::ios::beg);
     size_t dataSize = samples_per_frame * 1 * 16 * sizeof(uint32_t);
-    file.read(reinterpret_cast<char*>(frame), dataSize);
 
     if (file.peek() == EOF) {
 	throw EndOfStreamException("readVDIFData");
     }
+   
+    file.read(reinterpret_cast<char*>(frame), dataSize);
 
-    if (!file) {
-        std::cerr << "Failed to read data from file: " << filePath << std::endl;
-        return false;
-    }
-    
     file.close();
     return true;
 }
@@ -131,19 +128,27 @@ void VDIFStream::printFirstRow(uint32_t (*frame)[1][16], size_t samples_per_fram
 
 
 void VDIFStream::read(Frame &frame){
-    readVDIFHeader(get_input_file(), currentHeader, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
+    readVDIFHeader(get_input_file(), current_header, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
 
     number_of_headers += 1;
 
 
-    readVDIFData(get_input_file(), frame.dataArray,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
+    readVDIFData(get_input_file(), frame.samples,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
     
     number_of_frames += 1;
 
-    // What I'm doing here is taking seconds from epoch, multiplying it by 1000000000 to get nanoseconds and adding frame number in second times samples per frame (2000) times 62.5 nanoseconds.
-    frame.timeStamp  = static_cast<uint64_t>(currentHeader.sec_from_epoch) * 1000000 + currentHeader.dataframe_in_second * 125;
+    // Frame timestamp in units of 62.5 ns
+    uint64_t timestamp_ns = current_header.sec_from_epoch * 10000000000 / 625 + (current_header.dataframe_in_second - 1) * 2000;
 
-    current_timestamp = currentHeader.sec_from_epoch;
+    for (unsigned i = 0; i < samples_per_frame; ++i) {
+	    frame.sample_timestamps[i] = timestamp_ns + i;
+    }
+
+    std::cout << frame.sample_timestamps[0] / 10 * 625 << " firstTimeStamp\n" << frame.sample_timestamps[1999] / 10 * 625 << " lastTimeStamp\n";
+
+assert(false);
+
+    current_timestamp = current_header.sec_from_epoch;
 }
 
 
@@ -153,7 +158,7 @@ int VDIFStream::get_data_frame_size(){
 
 
 uint8_t VDIFStream::get_log2_nchan(){
-    return header.log2_nchan;
+    return first_header.log2_nchan;
 }
 
 int VDIFStream::get_samples_per_frame(){
@@ -168,45 +173,45 @@ uint32_t VDIFStream::get_current_timestamp(){
 
 void VDIFStream::print_vdif_header() {
         std::cout << "VDIF Header read successfully:" << std::endl;
-        std::cout << "sec_from_epoch: " << firstHeader.sec_from_epoch << std::endl;
-        std::cout << "legacy_mode: " << static_cast<int>(firstHeader.legacy_mode) << std::endl;
-        std::cout << "invalid: " << static_cast<int>(firstHeader.invalid) << std::endl;
-        std::cout << "dataframe_in_second: " << firstHeader.dataframe_in_second << std::endl;
-        std::cout << "ref_epoch: " << static_cast<int>(firstHeader.ref_epoch) << std::endl;
-        std::cout << "dataframe_length: " << firstHeader.dataframe_length << std::endl;
-        std::cout << "log2_nchan: " << static_cast<int>(firstHeader.log2_nchan) << std::endl;
-        std::cout << "version: " << static_cast<int>(firstHeader.version) << std::endl;
-        std::cout << "station_id: " << firstHeader.station_id << std::endl;
-        std::cout << "thread_id: " << firstHeader.thread_id << std::endl;
-        std::cout << "bits_per_sample: " << static_cast<int>(firstHeader.bits_per_sample) << std::endl;
-        std::cout << "data_type: " << static_cast<int>(firstHeader.data_type) << std::endl;
-        std::cout << "user_data1: " << firstHeader.user_data1 << std::endl;
-        std::cout << "edv: " << static_cast<int>(firstHeader.edv) << std::endl;
-        std::cout << "user_data2: " << firstHeader.user_data2 << std::endl;
-        std::cout << "user_data3: " << firstHeader.user_data3 << std::endl;
-        std::cout << "user_data4: " << firstHeader.user_data4 << std::endl;
+        std::cout << "sec_from_epoch: " << first_header.sec_from_epoch << std::endl;
+        std::cout << "legacy_mode: " << static_cast<int>(first_header.legacy_mode) << std::endl;
+        std::cout << "invalid: " << static_cast<int>(first_header.invalid) << std::endl;
+        std::cout << "dataframe_in_second: " << first_header.dataframe_in_second << std::endl;
+        std::cout << "ref_epoch: " << static_cast<int>(first_header.ref_epoch) << std::endl;
+        std::cout << "dataframe_length: " << first_header.dataframe_length << std::endl;
+        std::cout << "log2_nchan: " << static_cast<int>(first_header.log2_nchan) << std::endl;
+        std::cout << "version: " << static_cast<int>(first_header.version) << std::endl;
+        std::cout << "station_id: " << first_header.station_id << std::endl;
+        std::cout << "thread_id: " << first_header.thread_id << std::endl;
+        std::cout << "bits_per_sample: " << static_cast<int>(first_header.bits_per_sample) << std::endl;
+        std::cout << "data_type: " << static_cast<int>(first_header.data_type) << std::endl;
+        std::cout << "user_data1: " << first_header.user_data1 << std::endl;
+        std::cout << "edv: " << static_cast<int>(first_header.edv) << std::endl;
+        std::cout << "user_data2: " << first_header.user_data2 << std::endl;
+        std::cout << "user_data3: " << first_header.user_data3 << std::endl;
+        std::cout << "user_data4: " << first_header.user_data4 << std::endl;
 }
 
 
-void VDIFStream::print_vdif_header(VDIFHeader header_) {
+void VDIFStream::print_vdif_header(VDIFHeader header) {
         std::cout << "VDIF Header read successfully:" << std::endl;
-        std::cout << "sec_from_epoch: " << header_.sec_from_epoch << std::endl;
-        std::cout << "legacy_mode: " << static_cast<int>(header_.legacy_mode) << std::endl;
-        std::cout << "invalid: " << static_cast<int>(header_.invalid) << std::endl;
-        std::cout << "dataframe_in_second: " << header_.dataframe_in_second << std::endl;
-        std::cout << "ref_epoch: " << static_cast<int>(header_.ref_epoch) << std::endl;
-        std::cout << "dataframe_length: " << header_.dataframe_length << std::endl;
-        std::cout << "log2_nchan: " << static_cast<int>(header_.log2_nchan) << std::endl;
-        std::cout << "version: " << static_cast<int>(header_.version) << std::endl;
-        std::cout << "station_id: " << header_.station_id << std::endl;
-        std::cout << "thread_id: " << header_.thread_id << std::endl;
-        std::cout << "bits_per_sample: " << static_cast<int>(header_.bits_per_sample) << std::endl;
+        std::cout << "sec_from_epoch: " << header.sec_from_epoch << std::endl;
+        std::cout << "legacy_mode: " << static_cast<int>(header.legacy_mode) << std::endl;
+        std::cout << "invalid: " << static_cast<int>(header.invalid) << std::endl;
+        std::cout << "dataframe_in_second: " << header.dataframe_in_second << std::endl;
+        std::cout << "ref_epoch: " << static_cast<int>(header.ref_epoch) << std::endl;
+        std::cout << "dataframe_length: " << header.dataframe_length << std::endl;
+        std::cout << "log2_nchan: " << static_cast<int>(header.log2_nchan) << std::endl;
+        std::cout << "version: " << static_cast<int>(header.version) << std::endl;
+        std::cout << "station_id: " << header.station_id << std::endl;
+        std::cout << "thread_id: " << header.thread_id << std::endl;
+        std::cout << "bits_per_sample: " << static_cast<int>(header.bits_per_sample) << std::endl;
         std::cout << "data_type: " << static_cast<int>(header.data_type) << std::endl;
-        std::cout << "user_data1: " << header_.user_data1 << std::endl;
+        std::cout << "user_data1: " << header.user_data1 << std::endl;
         std::cout << "edv: " << static_cast<int>(header.edv) << std::endl;
-        std::cout << "user_data2: " << header_.user_data2 << std::endl;
-        std::cout << "user_data3: " << header_.user_data3 << std::endl;
-        std::cout << "user_data4: " << header_.user_data4 << std::endl;
+        std::cout << "user_data2: " << header.user_data2 << std::endl;
+        std::cout << "user_data3: " << header.user_data3 << std::endl;
+        std::cout << "user_data4: " << header.user_data4 << std::endl;
 }
 
 
