@@ -138,15 +138,11 @@ void VDIFStream::read(Frame &frame){
     number_of_frames += 1;
 
     // Frame timestamp in units of 62.5 ns
-    uint64_t timestamp_ns = current_header.sec_from_epoch * 10000000000 / 625 + (current_header.dataframe_in_second - 1) * 2000;
+    uint64_t timestamp_ns = static_cast<uint64_t>(current_header.sec_from_epoch) * 16e+6 + (current_header.dataframe_in_second - 1) * 2000;
 
     for (unsigned i = 0; i < samples_per_frame; ++i) {
 	    frame.sample_timestamps[i] = timestamp_ns + i;
     }
-
-    std::cout << frame.sample_timestamps[0] / 10 * 625 << " firstTimeStamp\n" << frame.sample_timestamps[1999] / 10 * 625 << " lastTimeStamp\n";
-
-assert(false);
 
     current_timestamp = current_header.sec_from_epoch;
 }

@@ -62,7 +62,7 @@ int main(int argc, char **argv){
    inputSection.startReadTransaction(ps.startTime());
    
     //correlatorPipeline.startReadTransaction(ps.startTime());
-   //correlatorPipeline.doWork();
+  //correlatorPipeline.doWork();
     ///std::clog<<"size is " << sizeof (ISBI_CorrelatorPipeline) << std::endl;
       
     #if !defined CREATE_BACKTRACE_ON_EXCEPTION
