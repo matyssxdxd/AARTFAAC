@@ -111,7 +111,7 @@ cpu_set_t Parset::allowedCPUs() const
 
 void Parset::handleSubbandsAndFrequencies()
 {
-  _subbandBandwidth = _clockSpeed / 1024.0;
+  _subbandBandwidth = 16000000;
 
   bool hasSubbandFrequencies = _subbandFrequencies.size() > 0, hasSubbandNumbers = _subbandNumbers.size() > 0;
 
@@ -141,7 +141,7 @@ void Parset::handleSubbandsAndFrequencies()
 Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
 :
   //_subbandBandwidth(_clockSpeed / 1024.0),
-  //_subbandBandwidth(160000),
+  _subbandBandwidth(16000000),
   _nrBeams(1)
 {
   _GPUs.push_back(0);
@@ -201,7 +201,7 @@ Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
 
    handleSubbandsAndFrequencies();
   _startTime = providedStartTime != "" ? TimeStamp::fromDate(providedStartTime.c_str(), clockSpeed()) : TimeStamp::now(clockSpeed()) + 30 * subbandBandwidth();
- _stopTime  = _startTime + runTime * subbandBandwidth();
+  _stopTime  = _startTime + runTime * subbandBandwidth();
 }
 
 

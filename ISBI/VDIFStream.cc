@@ -41,7 +41,7 @@ VDIFStream::VDIFStream(string input_file) {
 
 string VDIFStream::get_input_file(){ return   input_file_;  }
 
-bool VDIFStream::is_valid_header(const VDIFHeader& first_header, const VDIFHeader& current_header) {
+bool VDIFStream::is_valid_header() {
 	if (first_header.legacy_mode != current_header.legacy_mode) return false;
 	if (first_header.ref_epoch != current_header.ref_epoch) return false;
 	if (first_header.dataframe_length != current_header.dataframe_length) return false;

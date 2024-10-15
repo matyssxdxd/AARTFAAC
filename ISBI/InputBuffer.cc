@@ -142,15 +142,14 @@ InputBuffer::~InputBuffer()
 }
 
 void InputBuffer::handleConsecutivePackets(Frame& packetBuffer, unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
-	TimeStamp beginTime = epoch +  packetBuffer.sample_timestamps[firstPacket];
+	TimeStamp beginTime = epoch + packetBuffer.sample_timestamps[firstPacket];
 
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
-
 	if (beginTime >= latestWriteTime) {
 		unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
 		unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
 		TimeStamp endTime(beginTime + myNrTimes);
-	
+
 		latestWriteTime = endTime;
 
 		readerAndWriterSynchronization.startWrite(beginTime, endTime);
@@ -406,7 +405,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
   TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband() * 16e+6;
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
 }
