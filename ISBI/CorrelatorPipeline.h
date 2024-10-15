@@ -2,7 +2,7 @@
 #define ISBI_CORRELATOR_PIPELINE
 
 #include "ISBI/InputSection.h"
-#include "AARTFAAC/OutputSection.h"
+#include "ISBI/OutputSection.h"
 //#include "ISBI/CorrelatorPipeline.h"
 #include "ISBI/Parset.h"
 #include "Common/FilterBank.h"
@@ -33,7 +33,7 @@ class ISBI_CorrelatorPipeline : public CorrelatorPipeline
     const ISBI_Parset  &ps;
     const unsigned	   nrWorkQueues;
     InputSection	   inputSection;
-    //OutputSection	   outputSection;
+    OutputSection	   outputSection;
 
     std::vector<TimeStamp> currentTimes;
     std::mutex		   currentTimesMutex;

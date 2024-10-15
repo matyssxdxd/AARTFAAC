@@ -128,6 +128,9 @@ ISBI_SOURCES =          $(COMMON_SOURCES)\
 			ISBI/Parset.cc\
 			ISBI/CorrelatorPipeline.cc\
 			ISBI/CorrelatorWorkQueue.cc\
+			ISBI/OutputBuffer.cc\
+			ISBI/OutputSection.cc\
+			ISBI/Visibilities.cc\
                         Correlator/CorrelatorPipeline.cc\
                         Correlator/Parset.cc\
                         Correlator/DeviceInstance.cc\

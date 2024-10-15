@@ -19,7 +19,7 @@ ISBI_CorrelatorPipeline::ISBI_CorrelatorPipeline(const ISBI_Parset &ps)
   ps(ps),
   nrWorkQueues(ps.nrQueuesPerGPU() * ps.nrGPUs()),
   inputSection(ps),
-  //outputSection(ps),
+  outputSection(ps),
   nextTime(ps.startTime())
 {
 }
