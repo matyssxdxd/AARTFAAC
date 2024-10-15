@@ -3,7 +3,11 @@
 
 #include "Common/Stream/FileStream.h"
 #include "ISBI/Frame.h"
+<<<<<<< HEAD
 #include "Common/TimeStamp.h"
+=======
+#include "ISBI/Sample.h"
+>>>>>>> main
 
 using namespace std;
 
@@ -52,6 +56,7 @@ private:
 public:
      VDIFStream(string input_file);
      void read(Frame &frame);
+     uint64_t currentSampleTimestamp;
     void       get_vdif_header();
     void       print_vdif_header();
     int        get_data_frame_size();

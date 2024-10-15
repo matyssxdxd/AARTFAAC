@@ -10,6 +10,7 @@
 #include "VDIFStream.h"
 #include "ISBI/Frame.h"
 
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <iostream>

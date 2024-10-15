@@ -1,8 +1,6 @@
 #ifndef ISBI_FRAME_H
 #define ISBI_FRAME_H
 
-#include "Common/TimeStamp.h"
-
 struct Frame {
 	uint32_t (*samples)[1][16];
 	uint64_t (*sample_timestamps);
