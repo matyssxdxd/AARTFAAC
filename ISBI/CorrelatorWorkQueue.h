@@ -3,6 +3,7 @@
 
 #include "ISBI/CorrelatorPipeline.h"
 #include "ISBI/Parset.h"
+#include "ISBI/Visibilities.h"
 #include "Common/CUDA_Support.h"
 #include "Common/SparseSet.h"
 #include "Common/TimeStamp.h"
@@ -28,7 +29,7 @@ class CorrelatorWorkQueue
   private:
     bool hasValidData(std::vector<SparseSet<TimeStamp>> &);
     bool inTime(const TimeStamp &);
-    //void computeWeights(const std::vector<SparseSet<TimeStamp> > &validData, Visibilities *);
+    void computeWeights(const std::vector<SparseSet<TimeStamp> > &validData, Visibilities *);
 
     std::vector<SparseSet<TimeStamp>> validData;
 };
