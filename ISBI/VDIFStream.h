@@ -3,11 +3,6 @@
 
 #include "Common/Stream/FileStream.h"
 #include "ISBI/Frame.h"
-<<<<<<< HEAD
-#include "Common/TimeStamp.h"
-=======
-#include "ISBI/Sample.h"
->>>>>>> main
 
 using namespace std;
 

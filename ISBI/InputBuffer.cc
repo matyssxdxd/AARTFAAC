@@ -279,13 +279,10 @@ void InputBuffer::inputThreadBody(){
 		     expectedTimeStamp = timeStamp + nrTimesPerPacket;
 	     }
 
-      }
+     if (firstSample < nextSample) {
+	    handleConsecutivePackets(frame, firstSample, nextSample, epoch);
+     } 
       
-      //std::cout << "firstPacket " << firstPacket  << " nextPacket " << nextPacket << endl;
-   
-      if (firstPacket < nextPacket){
-	handleConsecutivePackets(&frames[nextPacket], firstPacket, nextPacket, vdifStream);
-      }
   
   //#endif
   } while (timeStamp < stopTime && !stop && !signalCaught);
