@@ -42,18 +42,6 @@ VDIFStream::VDIFStream(string input_file) {
 
 string VDIFStream::get_input_file(){ return   input_file_;  }
 
-bool VDIFStream::is_valid_header() {
-	if (first_header.legacy_mode != current_header.legacy_mode) return false;
-	if (first_header.ref_epoch != current_header.ref_epoch) return false;
-	if (first_header.dataframe_length != current_header.dataframe_length) return false;
-	if (first_header.log2_nchan != current_header.log2_nchan) return false;
-	if (first_header.version != current_header.version) return false;
-	if (first_header.station_id != current_header.station_id) return false;
-	if (first_header.bits_per_sample != current_header.bits_per_sample) return false;
-	if (first_header.data_type != current_header.data_type) return false;
-	return true;
-}
-
 
 bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag) {
 	std::ifstream file(filePath, std::ios::binary);
@@ -138,7 +126,6 @@ void VDIFStream::read(Frame &frame){
     
     number_of_frames += 1;
 
-    // Frame timestamp in units of 62.5 ns
     uint64_t timestamp_ns = static_cast<uint64_t>(current_header.sec_from_epoch) * 16e+6 + (current_header.dataframe_in_second - 1) * 2000;
 
     for (unsigned i = 0; i < samples_per_frame; ++i) {

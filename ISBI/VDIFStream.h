@@ -51,7 +51,6 @@ private:
 public:
      VDIFStream(string input_file);
      void read(Frame &frame);
-     uint64_t currentSampleTimestamp;
     void       get_vdif_header();
     void       print_vdif_header();
     int        get_data_frame_size();
@@ -70,7 +69,6 @@ public:
    size_t tryWrite(const void *ptr, size_t size);
    size_t tryRead(void *ptr, size_t size);
 
-   bool is_valid_header();
     ~VDIFStream() override;
 };
 
