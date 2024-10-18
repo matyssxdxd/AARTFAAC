@@ -19,7 +19,7 @@ class Visibilities
       uint16_t nrReceivers;
       uint8_t  nrPolarizations;
       uint8_t  correlationMode;
-      double   startTime, endTime;
+      double  startTime, endTime;
 #if defined USE_LEGACY_VISIBILITIES_FORMAT
       uint32_t weights[78]; // Fixed-sized field, independent of #stations!
 #else

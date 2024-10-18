@@ -184,7 +184,7 @@ inline TimeStamp::operator int64_t () const
 
 inline TimeStamp::operator double () const
 {
-  return (double) 1024.0 * time / clockSpeed;
+  return static_cast<double>(time / 10 * 625);
 }
 
 inline TimeStamp::operator struct timespec () const
