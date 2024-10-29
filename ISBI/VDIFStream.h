@@ -2,7 +2,7 @@
 #define RADIOBLOCKS_VDIFSTREAM_H
 
 #include "Common/Stream/FileStream.h"
-#include "ISBI/Frame.h"
+#include "Common/TimeStamp.h"
 
 using namespace std;
 
@@ -32,6 +32,24 @@ struct VDIFHeader {
                    user_data2(0), user_data3(0), user_data4(0){};
 };
 
+struct Frame {
+        VDIFHeader header{};
+        uint32_t (*samples)[1][16];
+
+
+        Frame() {
+                samples = new uint32_t[2000][1][16];
+        }
+
+        ~Frame() {
+                delete[] samples;
+        }
+
+
+        TimeStamp timeStamp(TimeStamp epoch, unsigned sample_in_frame) {
+                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * 16e+6 + (header.dataframe_in_second - 1) * 2000 + sample_in_frame;
+        }
+};
 
 class VDIFStream : public Stream{
 private:

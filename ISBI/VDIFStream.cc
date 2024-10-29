@@ -8,7 +8,6 @@
 #include "Common/Stream/FileStream.h"
 
 #include "VDIFStream.h"
-#include "ISBI/Frame.h"
 
 #include <chrono>
 #include <cstdint>
@@ -117,20 +116,12 @@ void VDIFStream::printFirstRow(uint32_t (*frame)[1][16], size_t samples_per_fram
 
 
 void VDIFStream::read(Frame &frame){
-    readVDIFHeader(get_input_file(), current_header, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
-
+    readVDIFHeader(get_input_file(), frame.header, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
     number_of_headers += 1;
 
 
     readVDIFData(get_input_file(), frame.samples,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
-    
     number_of_frames += 1;
-
-    uint64_t timestamp_ns = static_cast<uint64_t>(current_header.sec_from_epoch) * 16e+6 + (current_header.dataframe_in_second - 1) * 2000;
-
-    for (unsigned i = 0; i < samples_per_frame; ++i) {
-	    frame.sample_timestamps[i] = timestamp_ns + i;
-    }
 
     current_timestamp = current_header.sec_from_epoch;
 }

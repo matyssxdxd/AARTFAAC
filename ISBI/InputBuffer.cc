@@ -4,7 +4,6 @@
 
 #include "ISBI/InputBuffer.h"
 #include "ISBI/VDIFStream.h"
-#include "ISBI/Frame.h"
 
 #include <byteswap.h>
 #include <omp.h>
@@ -142,7 +141,7 @@ InputBuffer::~InputBuffer()
 }
 
 void InputBuffer::handleConsecutivePackets(Frame& packetBuffer, unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
-	TimeStamp beginTime = epoch + packetBuffer.sample_timestamps[firstPacket];
+	TimeStamp beginTime = packetBuffer.timeStamp(epoch, firstPacket);
 
 std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 	if (beginTime >= latestWriteTime) {
@@ -256,7 +255,7 @@ void InputBuffer::inputThreadBody(){
        
      
 	     for (firstSample = nextSample = 0; nextSample < 2000; ++nextSample) {
-		     timeStamp = epoch + frame.sample_timestamps[nextSample];
+		     timeStamp = frame.timeStamp(epoch, nextSample); 
 		     if (timeStamp != expectedTimeStamp) {
 			     if (firstSample < nextSample) {
 				     handleConsecutivePackets(frame, firstSample, nextSample, epoch);

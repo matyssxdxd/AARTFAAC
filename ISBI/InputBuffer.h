@@ -7,7 +7,6 @@
 #include "Common/SparseSet.h"
 #include "Common/TimeStamp.h"
 #include "ISBI/VDIFStream.h"
-#include "ISBI/Frame.h"
 
 #include <boost/multi_array.hpp>
 
