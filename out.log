@@ -1,0 +1,108 @@
+command line arguments: ISBI/ISBI -p1 -n2 -t125000 -c256 -C17 -b16 -s8 -m15 -D 2024-02-20 04:35:19 -r180 -g0 -q1 -R0 -i /var/scratch/jsteinbe/data/aa1_ib_no0002.m5a,/var/scratch/jsteinbe/data/aa1_ir_no0002.m5a -o /var/scratch/mpurvins/a1.out,/var/scratch/mpurvins/a2.out,/var/scratch/mpurvins/a3.out,/var/scratch/mpurvins/a4.out,/var/scratch/mpurvins/a5.out,/var/scratch/mpurvins/a6.out,/var/scratch/mpurvins/a7.out,/var/scratch/mpurvins/a8.out
+#receivers = 2
+#polarizations = 2
+#intermediate channels/subband = 256
+#output channels/subband = 17
+#samples/channel = 125000
+#bits/sample = 16
+correlator mode = 15
+start time = 1708403719000000000
+intended stop time = 1708403899000000000
+bandpass correction = 1
+delay compensation = 0
+generating FIR filter bank with 256 channels and 16 taps (4096 total), using a Kaiser window with beta = 9.0695
+myNrStations myNrStations 1
+myFirstStation 0
+1
+InputBuffer 0-0 created by CPU 0 on node 0, memory at node 0
+myNrStations 1
+myFirstStation 1
+myNrStations 1
+InputBuffer 1-1 created by CPU 0 on node 0, memory at node 0
+VDIF Header read successfully:
+sec_from_epoch: 4386919
+legacy_mode: 0
+invalid: 0
+dataframe_in_second: 1542
+ref_epoch: 48
+dataframe_length: 1004
+log2_nchan: 4
+version: 0
+station_id: 26994
+thread_id: 0
+bits_per_sample: 1
+data_type: 0
+user_data1: 0
+edv: 0
+user_data2: 0
+user_data3: 0
+user_data4: 0
+1704016800000000000 epoch
+ ps.inputDescriptors() 
+data_frame_size 8000
+samples_per_frame 2000
+nr_channels 16
+VDIF Header read successfully:
+sec_from_epoch: 4386919
+legacy_mode: 0
+invalid: 0
+dataframe_in_second: 1542
+ref_epoch: 48
+dataframe_length: 1004
+log2_nchan: 4
+version: 0
+station_id: 26994
+thread_id: 0
+bits_per_sample: 1
+data_type: 0
+user_data1: 0
+edv: 0
+user_data2: 0
+user_data3: 0
+user_data4: 0
+1704016800000000000 epoch
+ ps.inputDescriptors() 
+data_frame_size 8000
+samples_per_frame 2000
+nr_channels 16
+output buffer 0 created by CPU 0 on node 0, memory at node 0
+output buffer 1 created by CPU 0 on node 0, memory at node 0
+output buffer 2 created by CPU 0 on node 0, memory at node 0
+output buffer 3 created by CPU 0 on node 0, memory at node 0
+output buffer 4 created by CPU 0 on node 0, memory at node 0
+output buffer 5 created by CPU 8 on node 0, memory at node 0
+output buffer 6 created by CPU 8 on node 0, memory at node 0
+output buffer 7 created by CPU 8 on node 0, memory at node 0
+InputBuffer 0-0, valid: [1708403719192625000..1708403719600625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403719600625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403720008625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403720024625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403720440625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403720488625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403720880625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403720904625000> 
+time: 1708403719000000000, exec: 3.38126e-05
+InputBuffer 0-0 1708403718999760000 flagged: 9.64209% (1)
+InputBuffer 1-1 1708403718999760000 flagged: 9.64209% (1)
+InputBuffer 0-0, valid: [1708403719192625000..1708403721312625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403721312625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403721736625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403721736625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722136625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722128625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722568625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722568625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 0-0, valid: [1708403719192625000..1708403722992625000> 
+InputBuffer 1-1, valid: [1708403719192625000..1708403722992625000> 

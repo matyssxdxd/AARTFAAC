@@ -67,7 +67,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][16], size_t samples_per_frame,  int flag) {
+bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame,  int flag) {
 
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
@@ -77,7 +77,7 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][1
     
   
     file.seekg(flag, std::ios::beg);
-    size_t dataSize = samples_per_frame * 1 * 16 * sizeof(uint32_t);
+    size_t dataSize = samples_per_frame * 1 * 16 * sizeof(std::complex<int16_t>);
 
     if (file.peek() == EOF) {
 	throw EndOfStreamException("readVDIFData");
@@ -90,12 +90,13 @@ bool VDIFStream::readVDIFData(const std::string filePath, uint32_t (*frame)[1][1
 }
 
 
-void VDIFStream::printFirstRow(uint32_t (*frame)[1][16], size_t samples_per_frame) {
+#if 0
+void VDIFStream::printFirstRow(std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame) {
     if (samples_per_frame > 0) {
         // Allocate memory for the float32 array
         float (*float_frame)[1][16] = new float[samples_per_frame][1][16];
 
-        // Convert values from uint32_t to float32
+        // Convert values from std::complex<int16_t> to float32
         for (size_t i = 0; i < samples_per_frame; ++i) {
             for (size_t j = 0; j < 16; ++j) {
                 float_frame[i][0][j] = static_cast<float>(frame[i][0][j]);
@@ -113,6 +114,7 @@ void VDIFStream::printFirstRow(uint32_t (*frame)[1][16], size_t samples_per_fram
         delete[] float_frame;
     }
 }
+#endif
 
 
 void VDIFStream::read(Frame &frame){

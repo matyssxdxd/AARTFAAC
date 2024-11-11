@@ -82,6 +82,8 @@ int main(int argc, char **argv){
     //inputSection;    
    //ISBI/ISBI -p1 -n288 -t768 -c256 -C17 -b16 -s8 -m15 -D '2024-03-17 03:36:46' -r4 -g0 -q1 -R0 -i /mnt/VLBI/data/b004/b004_ib_no0001.m5a,/mnt/VLBI/data/b004/b004_ir_no0001.m5a -o null:
 
+
+//    TZ=UTC ISBI/ISBI -p1 -n2 -t768 -c256 -C16 -b16 -s8 -m15 -D '2024-02-20 04:35:19' -r180 -g0 -q1 -R0 -i /var/scratch/jsteinbe/data/aa1_ib_no0002.m5a,/var/scratch/jsteinbe/data/aa1_ir_no0002.m5a -o /var/scratch/mpurvins/a1.out,/var/scratch/mpurvins/a2.out,/var/scratch/mpurvins/a3.out,/var/scratch/mpurvins/a4.out,/var/scratch/mpurvins/a5.out,/var/scratch/mpurvins/a6.out,/var/scratch/mpurvins/a7.out,/var/scratch/mpurvins/a8.out
   return 0;
 }
 

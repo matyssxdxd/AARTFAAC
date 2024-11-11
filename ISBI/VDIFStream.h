@@ -4,6 +4,9 @@
 #include "Common/Stream/FileStream.h"
 #include "Common/TimeStamp.h"
 
+#include <complex>
+
+
 using namespace std;
 
 struct VDIFHeader {
@@ -34,11 +37,11 @@ struct VDIFHeader {
 
 struct Frame {
         VDIFHeader header{};
-        uint32_t (*samples)[1][16];
+        std::complex<int16_t> (*samples)[1][16];
 
 
         Frame() {
-                samples = new uint32_t[2000][1][16];
+                samples = new std::complex<int16_t>[2000][1][16];
         }
 
         ~Frame() {
@@ -76,13 +79,13 @@ public:
     int        get_samples_per_frame();
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag);
-    bool       readVDIFData(const std::string filePath, uint32_t (*frame)[1][16], size_t samples_per_frame,  int flag);
+    bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame,  int flag);
 
    void print_vdif_header(VDIFHeader header_);
    
     string get_input_file();
     
-    void printFirstRow(uint32_t (*frame)[1][16], size_t samples_per_frame) ;
+    //void printFirstRow(std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame) ;
 
    size_t tryWrite(const void *ptr, size_t size);
    size_t tryRead(void *ptr, size_t size);

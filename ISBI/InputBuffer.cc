@@ -140,52 +140,45 @@ InputBuffer::~InputBuffer()
   inputThread.join();
 }
 
-void InputBuffer::handleConsecutivePackets(Frame& packetBuffer, unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
-	TimeStamp beginTime = packetBuffer.timeStamp(epoch, firstPacket);
+void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuffer], unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
+  TimeStamp beginTime = packetBuffer[0].timeStamp(epoch, 0);
 
-std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
-	if (beginTime >= latestWriteTime) {
-		unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
-		unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
-		TimeStamp endTime(beginTime + myNrTimes);
+  std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
-		latestWriteTime = endTime;
+  if (beginTime >= latestWriteTime) {
+    unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
+    unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
+    TimeStamp endTime(beginTime + myNrTimes);
 
-		readerAndWriterSynchronization.startWrite(beginTime, endTime);
+    latestWriteTime = endTime;
 
-		size_t size = myNrStations * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
+    readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
-		for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
-			const uint32_t *payLoad = &packetBuffer.samples[packet][0][0];
-
-			for (unsigned time = 0; time < nrTimesPerPacket; ++time) {
-				for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
-					const uint32_t *readPtr = &payLoad[(time * myNrSubbands + subband) * size]; 
-					char *writePtr = hostRingBuffer[subband][timeIndex][myFirstStation].origin();
-
-					//assert(writePtr + size <= hostRingBuffer.origin() + hostRingBuffer.num_elements());
-
-					uncached_memcpy(writePtr, readPtr, size);
-			}
-
-			if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
-		}
+    for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
+      for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
+	for (unsigned subband = 0; subband < 8; subband ++) {
+	  for (unsigned pol = 0; pol < 2; pol ++) {
+	    unsigned mappedIndex = (int[]) { 2, 6, 10, 14, 3, 7, 11, 15, 0, 4, 8, 12, 1, 5, 9, 13 }[2 * subband + pol];
+	    *reinterpret_cast<complex<int16_t> *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
+	  }
 	}
+
+	if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
+      }
+    }
 	
-	{
-		std::lock_guard<std::mutex> lock(validDataMutex);
-		validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband);
-		const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
+    {
+      std::lock_guard<std::mutex> lock(validDataMutex);
+      validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband);
+      const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
 
-		if (ranges.size() < 16 || ranges.back().end == beginTime) {
-			validData.include(beginTime, endTime);
-		}
-	}
+      if (ranges.size() < 16 || ranges.back().end == beginTime) {
+	validData.include(beginTime, endTime);
+      }
+    }
 
-	readerAndWriterSynchronization.finishedWrite(endTime);
-
-	}
-	
+    readerAndWriterSynchronization.finishedWrite(endTime);
+  }
 }
 
 
@@ -219,10 +212,10 @@ void InputBuffer::inputThreadBody(){
   std::cout << "samples_per_frame " << samples_per_frame  << std::endl;
   std::cout << "nr_channels " << nr_channels  << std::endl; 
   
-  Frame frame{};
+  Frame frames[maxNrPacketsInBuffer];
 
   bool printedImpossibleTimeStampWarning = false;
-  unsigned nrPackets, firstPacket, nextPacket, firstSample, nextSample;
+  unsigned nrPackets, firstPacket, nextPacket;
   TimeStamp timeStamp(0, 1); 
 
   #if defined USE_RECVMMSG
@@ -240,7 +233,8 @@ void InputBuffer::inputThreadBody(){
   do {
    //#if defined USE_RECVMMSG  
       try {
-	        vdifStream->read(frame);
+	for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++)
+	  vdifStream->read(frames[nrPackets]);
       }
       catch (Stream::EndOfStreamException) {
         #pragma omp critical (clog)
@@ -253,33 +247,33 @@ void InputBuffer::inputThreadBody(){
 	  throw;
       }*/
        
-     
-	     for (firstSample = nextSample = 0; nextSample < 2000; ++nextSample) {
-		     timeStamp = frame.timeStamp(epoch, nextSample); 
-		     if (timeStamp != expectedTimeStamp) {
-			     if (firstSample < nextSample) {
-				     handleConsecutivePackets(frame, firstSample, nextSample, epoch);
-			     }
-
-		     if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
-				     if (!printedImpossibleTimeStampWarning) {
-					     printedImpossibleTimeStampWarning = true;
-					     #pragma omp critical (clog)
-					     std::clog << logMessage() << ": impossible timestamp " << timeStamp << std::endl;
-				     }
-
-				     firstSample = nextSample + 1;
-				     timeStamp = 0;
-			     } else {
-				     printedImpossibleTimeStampWarning = false;
-			     }
+      for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
+	     timeStamp = frames[nextPacket].timeStamp(epoch, 0); 
+	     if (timeStamp != expectedTimeStamp) {
+		     if (firstPacket < nextPacket) {
+			     handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
 		     }
 
-		     expectedTimeStamp = timeStamp + nrTimesPerPacket;
+	     if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
+			     if (!printedImpossibleTimeStampWarning) {
+				     printedImpossibleTimeStampWarning = true;
+				     #pragma omp critical (clog)
+				     std::clog << logMessage() << ": impossible timestamp " << timeStamp << std::endl;
+			     }
+
+			     firstPacket = nextPacket + 1;
+			     timeStamp = 0;
+		     } else {
+			     printedImpossibleTimeStampWarning = false;
+		     }
 	     }
 
-     if (firstSample < nextSample) {
-	    handleConsecutivePackets(frame, firstSample, nextSample, epoch);
+	     expectedTimeStamp = timeStamp + nrTimesPerPacket;
+     }
+
+
+     if (firstPacket < nextPacket) {
+	    handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
      } 
       
   

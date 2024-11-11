@@ -47,5 +47,5 @@ void TimeStamp::wait() const
 
 std::ostream &operator << (std::ostream &os, const TimeStamp &ts)
 {
-  return os << ts.time / 10 * 625; 
+  return os << ts.time; 
 }
