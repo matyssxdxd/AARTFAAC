@@ -13,11 +13,11 @@
 class Module : public cu::Module
 {
   public:
-    Module(nvrtc::Program &, const Parset &); // throw (cu::Error, nvrtc::Error)
+    Module(const cu::Device &, nvrtc::Program &, const Parset &); // throw (cu::Error, nvrtc::Error)
 
   private:
     std::string findNVRTCincludePath() const;
-    cu::Module  compileModule(nvrtc::Program &, const Parset &) const;
+    cu::Module  compileModule(const cu::Device &, nvrtc::Program &, const Parset &) const;
 };
 
 #endif

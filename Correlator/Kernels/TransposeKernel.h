@@ -9,7 +9,7 @@
 class TransposeKernel : public Function
 {
   public:
-    TransposeKernel(const CorrelatorParset &, const Module &);
+    TransposeKernel(const CorrelatorParset &, const cu::Device &, const Module &);
 
     void launchAsync(cu::Stream &,
 		     cu::DeviceMemory &output,

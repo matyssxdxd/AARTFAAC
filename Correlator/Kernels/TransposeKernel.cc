@@ -2,10 +2,10 @@
 #include "Correlator/Kernels/TransposeKernel.h"
 
 
-TransposeKernel::TransposeKernel(const CorrelatorParset &ps, const Module &module)
+TransposeKernel::TransposeKernel(const CorrelatorParset &ps, const cu::Device &device, const Module &module)
 :
   Function(ps, module, "transpose"),
-  hasIntegratedMemory(cu::Context::getCurrent().getDevice().getAttribute<CU_DEVICE_ATTRIBUTE_INTEGRATED>())
+  hasIntegratedMemory(device.getAttribute<CU_DEVICE_ATTRIBUTE_INTEGRATED>())
 {
 }
 

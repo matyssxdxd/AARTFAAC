@@ -7,9 +7,9 @@
 #include <link.h>
 
 
-Module::Module(nvrtc::Program &program, const Parset &ps)
+Module::Module(const cu::Device &device, nvrtc::Program &program, const Parset &ps)
 :
-  cu::Module(compileModule(program, ps))
+  cu::Module(compileModule(device, program, ps))
 {
 }
 
@@ -34,9 +34,8 @@ std::string Module::findNVRTCincludePath() const
 }
 
 
-cu::Module Module::compileModule(nvrtc::Program &program, const Parset &ps) const
+cu::Module Module::compileModule(const cu::Device &device, nvrtc::Program &program, const Parset &ps) const
 {
-  cu::Device device(cu::Context::getCurrent().getDevice());
   int capability = 10 * device.getAttribute<CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR>() + device.getAttribute<CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR>();
 
   std::vector<std::string> options =

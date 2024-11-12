@@ -1,0 +1,9 @@
+TZ=UTC ISBI/ISBI -p1 -n2 -t12512 -c256 -C255 -b16 -s8 -m15 -D '2024-02-20 04:35:19' -r180 -g0 -q1 -R0 -B0 -i /var/scratch/jsteinbe/data/aa1_ib_no0002.m5a,/var/scratch/jsteinbe/data/aa1_ir_no0002.m5a -o /var/scratch/mpurvins/a1.out,/var/scratch/mpurvins/a2.out,/var/scratch/mpurvins/a3.out,/var/scratch/mpurvins/a4.out,/var/scratch/mpurvins/a5.out,/var/scratch/mpurvins/a6.out,/var/scratch/mpurvins/a7.out,/var/scratch/mpurvins/a8.out 2>&1|tee log.out
+
+
+TZ=UTC ISBI/ISBI -p1 -n2 -t12512 -c256 -C255 -b16 -s1 -m15 -D '2024-10-23 19:30:23' -r180 -g0 -q1 -R0 -B0 -f32000000 -i /var/scratch/mpurvins/data/test_2.m5a,/var/scratch/mpurvins/data/test_2.m5a -o /var/scratch/mpurvins/a1.out 2>&1|tee log.out
+
+TZ=UTC ISBI/ISBI -p1 -n2 -t12512 -c256 -C255 -b16 -s1 -m15 -D '2024-10-23 17:49:27' -r180 -g0 -q1 -R0 -B0 -f32000000 -i /var/scratch/mpurvins/data/test_1.m5a,/var/scratch/mpurvins/data/test_1.m5a -o /var/scratch/mpurvins/a1.out 2>&1|tee log.out
+
+TZ=UTC ISBI/ISBI -p1 -n2 -t12512 -c256 -C255 -b16 -s8 -m15 -D '2024-10-23 17:49:27' -r180 -g0 -q1 -R0 -B0 -f32000000 -i /var/scratch/jsteinbe/i014_ib_no0017.m5a,/var/scratch/jsteinbe/i014_ib_no0017.m5a -o /var/scratch/mpurvins/a1.out,/var/scratch/mpurvins/a2.out,/var/scratch/mpurvins/a3.out,/var/scratch/mpurvins/a4.out,/var/scratch/mpurvins/a5.out,/var/scratch/mpurvins/a6.out,/var/scratch/mpurvins/a7.out,/var/scratch/mpurvins/a8.out 2>&1|tee log.out
+

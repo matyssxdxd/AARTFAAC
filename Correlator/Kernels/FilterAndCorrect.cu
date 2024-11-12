@@ -294,7 +294,7 @@ void filterAndCorrect(
         unsigned time = time_major + time_minor;
 
         if (channel < NR_OUTPUT_CHANNELS_PER_SUBBAND * CHANNEL_INTEGRATION_FACTOR) {
-          float2 sample = bandPassWeights[channel + 1] * fft_data[time_minor][channel + 1];
+          float2 sample = /* bandPassWeights[channel + 1] * */ fft_data[time_minor][channel + 1];
 sample = make_float2(sample.x / 16, sample.y / 16);
 	  //sample = complexMul(sample, v);
           output[receiver][polarization][time][channel] = __float22half2_rn(sample);

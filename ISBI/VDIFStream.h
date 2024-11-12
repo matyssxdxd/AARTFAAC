@@ -38,10 +38,12 @@ struct VDIFHeader {
 struct Frame {
         VDIFHeader header{};
         std::complex<int16_t> (*samples)[1][16];
+        //std::complex<int16_t> (*samples)[1][2];
 
 
         Frame() {
                 samples = new std::complex<int16_t>[2000][1][16];
+                //samples = new std::complex<int16_t>[16000][1][2];
         }
 
         ~Frame() {
@@ -49,8 +51,9 @@ struct Frame {
         }
 
 
-        TimeStamp timeStamp(TimeStamp epoch, unsigned sample_in_frame) {
-                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * 16e+6 + (header.dataframe_in_second - 1) * 2000 + sample_in_frame;
+        TimeStamp timeStamp(TimeStamp epoch, double subbandBandwidth, unsigned sample_in_frame) {
+                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second - 1) * 2000 + sample_in_frame;
+                //return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second - 1) * 16000 + sample_in_frame;
         }
 };
 
@@ -78,8 +81,9 @@ public:
     uint8_t    get_log2_nchan();
     int        get_samples_per_frame();
     uint32_t   get_current_timestamp();
-    bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag);
-    bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame,  int flag);
+    bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t flag);
+    bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame,  off_t offset);
+    //bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset);
 
    void print_vdif_header(VDIFHeader header_);
    

@@ -20,6 +20,7 @@ using namespace std;
 
 VDIFStream::VDIFStream(string input_file) {
     samples_per_frame = 2000;
+    //samples_per_frame = 16000;
     number_of_headers = 0;
     number_of_frames = 0;    
     input_file_ = input_file;
@@ -29,6 +30,7 @@ VDIFStream::VDIFStream(string input_file) {
     if (read_vdif) {
         print_vdif_header();
 	data_frame_size = static_cast<int>(first_header.dataframe_length) * 8 - 32 +  16 * static_cast<int>(first_header.legacy_mode);
+	//data_frame_size = static_cast<int>(first_header.dataframe_length) * 8 - 32 +  2 * static_cast<int>(first_header.legacy_mode);
        	current_timestamp = first_header.sec_from_epoch;
     }else {
         std::cerr << "Error reading VDIF header." << std::endl;
@@ -42,14 +44,14 @@ VDIFStream::VDIFStream(string input_file) {
 string VDIFStream::get_input_file(){ return   input_file_;  }
 
 
-bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, int flag) {
+bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t offset) {
 	std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filePath << std::endl;
         return false;
     }
     
-    file.seekg(flag, std::ios::beg);
+    file.seekg(offset, std::ios::beg);
    
    file.read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader)); 
 
@@ -67,7 +69,8 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame,  int flag) {
+bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame, off_t offset) {
+//bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset {
 
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
@@ -76,8 +79,9 @@ bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> 
     }
     
   
-    file.seekg(flag, std::ios::beg);
+    file.seekg(offset, std::ios::beg);
     size_t dataSize = samples_per_frame * 1 * 16 * sizeof(std::complex<int16_t>);
+    //size_t dataSize = samples_per_frame * 1 * 2 * sizeof(std::complex<int16_t>);
 
     if (file.peek() == EOF) {
 	throw EndOfStreamException("readVDIFData");

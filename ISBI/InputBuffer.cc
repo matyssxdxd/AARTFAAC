@@ -125,9 +125,6 @@ InputBuffer::InputBuffer(const ISBI_Parset &ps, MultiArrayHostBuffer<char, 4> ho
   std::clog << logMessage() << " created by CPU " << currentCPU() << " on node " << currentNode() << ", memory at node " << node(hostRingBuffer) << std::endl;
 }
 
-
-
-
 InputBuffer::~InputBuffer()
 {
   //readerAndWriterSynchronization.noMoreReading(); // FIXME: not here
@@ -140,8 +137,9 @@ InputBuffer::~InputBuffer()
   inputThread.join();
 }
 
+
 void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuffer], unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
-  TimeStamp beginTime = packetBuffer[0].timeStamp(epoch, 0);
+  TimeStamp beginTime = packetBuffer[0].timeStamp(epoch, ps.subbandBandwidth(), 0);
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
@@ -157,8 +155,10 @@ void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuff
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
 	for (unsigned subband = 0; subband < 8; subband ++) {
+	//for (unsigned subband = 0; subband < 1; subband ++) {
 	  for (unsigned pol = 0; pol < 2; pol ++) {
 	    unsigned mappedIndex = (int[]) { 2, 6, 10, 14, 3, 7, 11, 15, 0, 4, 8, 12, 1, 5, 9, 13 }[2 * subband + pol];
+	    //unsigned mappedIndex = (int[]) { 0, 1 }[2 * subband + pol];
 	    *reinterpret_cast<complex<int16_t> *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
 	  }
 	}
@@ -196,9 +196,9 @@ void InputBuffer::inputThreadBody(){
    
    std::cout << "myNrStations " << myNrStations << std::endl;
    std::cout << "myFirstStation " << myFirstStation << std::endl;
-   VDIFStream * vdifStream = new  VDIFStream (ps.inputDescriptors()[1 / myNrStations]); 
+   VDIFStream * vdifStream = new  VDIFStream (ps.inputDescriptors()[myFirstStation]); 
    assert(vdifStream != nullptr);  
-   TimeStamp epoch = ps.startTime() - static_cast<uint64_t>(vdifStream->get_current_timestamp()) * 16e+6;
+   TimeStamp epoch = ps.startTime() - static_cast<uint64_t>(vdifStream->get_current_timestamp()) * ps.subbandBandwidth();
    std::cout << epoch << " epoch\n ";
    
    std::cout << "ps.inputDescriptors() " << std::endl;
@@ -248,7 +248,7 @@ void InputBuffer::inputThreadBody(){
       }*/
        
       for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
-	     timeStamp = frames[nextPacket].timeStamp(epoch, 0); 
+	     timeStamp = frames[nextPacket].timeStamp(epoch, ps.subbandBandwidth(), 0); 
 	     if (timeStamp != expectedTimeStamp) {
 		     if (firstPacket < nextPacket) {
 			     handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);

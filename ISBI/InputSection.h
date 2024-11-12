@@ -34,8 +34,7 @@ class InputSection
     std::vector<std::unique_ptr<InputBuffer>> inputBuffers;
     unsigned nrRingBufferSamplesPerSubband;
     const static unsigned nrTimesPerPacket = 2000;
-
-
+    //const static unsigned nrTimesPerPacket = 16000;
 };
 
 #endif

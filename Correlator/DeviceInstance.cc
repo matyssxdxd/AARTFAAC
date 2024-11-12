@@ -48,9 +48,14 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     return TCC(ps);
   })),
   filterAndCorrectFuture(std::async([&] {
+    if (ps.nrSamplesPerChannel() % NR_TAPS != 0) {
+      std::cerr << "nr_samples_per_channel time is not a multiple of " << NR_TAPS << std::endl;
+      exit(1);
+    }
+
     context.setCurrent();
     nvrtc::Program program(std::string(&_binary_Correlator_Kernels_FilterAndCorrect_cu_start, &_binary_Correlator_Kernels_FilterAndCorrect_cu_end), "Correlator/Kernels/FilterAndCorrect.cu");
-    return Module(program, ps);
+    return Module(device, program, ps);
   })),
   devFilterWeightsBuffer(ps.nrChannelsPerSubband() * NR_TAPS * sizeof(float)),
   devBandPassCorrectionWeights(ps.nrChannelsPerSubband() * sizeof(float)),
@@ -63,7 +68,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
   devCorrectedData((size_t) ps.nrOutputChannelsPerSubband() * ps.nrSamplesPerChannel() * ps.channelIntegrationFactor() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
 
   filterAndCorrectModule(filterAndCorrectFuture.get()),
-  transposeKernel(ps, filterAndCorrectModule),
+  transposeKernel(ps, device, filterAndCorrectModule),
   filterAndCorrectKernel(ps, filterAndCorrectModule),
   postTransposeKernel(ps, filterAndCorrectModule),
   tcc(tccFuture.get()),
