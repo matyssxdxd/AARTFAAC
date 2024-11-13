@@ -80,7 +80,7 @@ bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> 
     
   
     file.seekg(offset, std::ios::beg);
-    size_t dataSize = samples_per_frame * 1 * 16 * sizeof(std::complex<int16_t>);
+    size_t dataSize = samples_per_frame * 1 * 16 * sizeof(float);
     //size_t dataSize = samples_per_frame * 1 * 2 * sizeof(std::complex<int16_t>);
 
     if (file.peek() == EOF) {
