@@ -18,78 +18,59 @@
 
 using namespace std;
 
-VDIFStream::VDIFStream(string input_file) {
-    samples_per_frame = 2000;
-    //samples_per_frame = 16000;
-    number_of_headers = 0;
-    number_of_frames = 0;    
-    input_file_ = input_file;
+VDIFStream::VDIFStream(string input_file): number_of_headers(0), number_of_frames(0), nthreads(1) {
+    file = new std::ifstream(input_file, std::ios::binary);
 
-    bool read_vdif = readVDIFHeader(input_file, first_header, 0);
+    file->seekg(0, std::ios::beg);
+    file->read(reinterpret_cast<char *>(&first_header), sizeof(VDIFHeader));
 
-    if (read_vdif) {
-        print_vdif_header();
-	data_frame_size = static_cast<int>(first_header.dataframe_length) * 8 - 32 +  16 * static_cast<int>(first_header.legacy_mode);
-	//data_frame_size = static_cast<int>(first_header.dataframe_length) * 8 - 32 +  2 * static_cast<int>(first_header.legacy_mode);
-       	current_timestamp = first_header.sec_from_epoch;
-    }else {
-        std::cerr << "Error reading VDIF header." << std::endl;
-    }
+    unsigned bps = first_header.bits_per_sampe + 1;
+    nchan = pow(2, first_header.log2_nchan);
+    unsigned values_per_word = 32 / bps / 1;
+    unsigned payload_nbytes = first_header.dataframe_length * 8 - 32; // Calculate dataframe_length in bytes and remove header bytes from it
+
+    samples_per_frame = payload_nbytes / 4 * values_per_word / nchan;
+    data_frame_size = payload_nbytes + nchan * static_cast<int>(first_header.legacy_mode);
+}
+
+VDIFStream::~VDIFStream() {
+    file->close();
+    delete[] file;
 }
 
     size_t VDIFStream::tryWrite(const void *ptr, size_t size){ return 0;}
     size_t VDIFStream::tryRead(void *ptr, size_t size){ return 0; }
 
-
-string VDIFStream::get_input_file(){ return   input_file_;  }
-
-
 bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t offset) {
-	std::ifstream file(filePath, std::ios::binary);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filePath << std::endl;
-        return false;
-    }
     
-    file.seekg(offset, std::ios::beg);
-   
-   file.read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader)); 
+    file->seekg(offset, std::ios::beg);
 
-    if (file.peek() == EOF) {
-	throw EndOfStreamException("readVDIFHeader");
-    }	
+    if (file->peek() == EOF) {
+    	throw EndOfStreamException("readVDIFHeader");
+    }
+
+    file->read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader)); 
 
     if (!file) {
-        std::cerr << "Failed to read header from file: " << filePath << std::endl;
+        std::cerr << "Failed to read header from file\n";
         return false;
     }
     
-    file.close();
     return true;
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame, off_t offset) {
-//bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset {
+bool VDIFStream::readVDIFData(std::complex<int16_t> (*frame)[nthreads][nchan], off_t offset) {
+    file->seekg(offset, std::ios::beg);
 
-    std::ifstream file(filePath, std::ios::binary);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open file: " << filePath << std::endl;
-        return false;
-    }
-    
-  
-    file.seekg(offset, std::ios::beg);
-    size_t dataSize = samples_per_frame * 1 * 16 * sizeof(float);
-    //size_t dataSize = samples_per_frame * 1 * 2 * sizeof(std::complex<int16_t>);
+    size_t data_size = samples_per_frame * nthreads * nchan * sizeof(std::complex<int16_t>);
 
-    if (file.peek() == EOF) {
+    if (file->peek() == EOF) {
 	throw EndOfStreamException("readVDIFData");
     }
    
-    file.read(reinterpret_cast<char*>(frame), dataSize);
+    file->read(reinterpret_cast<char*>(frame), data_size);
 
-    file.close();
     return true;
 }
 
@@ -128,8 +109,6 @@ void VDIFStream::read(Frame &frame){
 
     readVDIFData(get_input_file(), frame.samples,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
     number_of_frames += 1;
-
-    current_timestamp = current_header.sec_from_epoch;
 }
 
 

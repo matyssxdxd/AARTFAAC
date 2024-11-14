@@ -37,13 +37,13 @@ struct VDIFHeader {
 
 struct Frame {
         VDIFHeader header{};
-        std::complex<int16_t> (*samples)[1][16];
-        //std::complex<int16_t> (*samples)[1][2];
+	unsigned samples_per_frame;
+	unsigned nthreads;
+	unsigned nchan;
+        std::complex<int16_t> (*samples)[nthreads][nchan];
 
-
-        Frame() {
-                samples = new std::complex<int16_t>[2000][1][16];
-                //samples = new std::complex<int16_t>[16000][1][2];
+        Frame(unsigned samples_per_frame, unsigned nthreads, unsigned nchan) {
+                samples = new std::complex<int16_t>[samples_per_frame][nthreads][nchan];
         }
 
         ~Frame() {
@@ -51,9 +51,8 @@ struct Frame {
         }
 
 
-        TimeStamp timeStamp(TimeStamp epoch, double subbandBandwidth, unsigned sample_in_frame) {
-                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second - 1) * 2000 + sample_in_frame;
-                //return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second - 1) * 16000 + sample_in_frame;
+        TimeStamp timeStamp(TimeStamp epoch, double subbandBandwidth) {
+                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second - 1) * samples_per_frame + sample_in_frame;
         }
 };
 
@@ -67,34 +66,30 @@ private:
 	int samples_per_frame;
 	int number_of_headers;
         int number_of_frames;
-
-	uint32_t current_timestamp;
-	
-	string input_file_;
-	
+	unsigned nchan;
+	unsigned nthreads;
+	std::ifstream* file;
 public:
-     VDIFStream(string input_file);
-     void read(Frame &frame);
-    void       get_vdif_header();
-    void       print_vdif_header();
-    int        get_data_frame_size();
-    uint8_t    get_log2_nchan();
-    int        get_samples_per_frame();
-    uint32_t   get_current_timestamp();
-    bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t flag);
-    bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame,  off_t offset);
+        VDIFStream(string input_file);
+        void read(Frame &frame);
+        void       get_vdif_header();
+        void       print_vdif_header();
+        int        get_data_frame_size();
+        uint8_t    get_log2_nchan();
+        int        get_samples_per_frame();
+        uint32_t   get_current_timestamp();
+        bool       readVDIFHeader(VDIFHeader& header, off_t flag);
+        bool       readVDIFData(std::complex<int16_t> (*frame)[nthreads][nchan],  off_t offset);
     //bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset);
 
    void print_vdif_header(VDIFHeader header_);
    
-    string get_input_file();
-    
     //void printFirstRow(std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame) ;
 
    size_t tryWrite(const void *ptr, size_t size);
    size_t tryRead(void *ptr, size_t size);
 
-    ~VDIFStream() override;
+    ~VDIFStream();
 };
 
 
