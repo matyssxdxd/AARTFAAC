@@ -69,7 +69,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame, off_t offset) {
+bool VDIFStream::readVDIFData(const std::string filePath, float (*frame)[1][16], size_t samples_per_frame, off_t offset) {
 //bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset {
 
     std::ifstream file(filePath, std::ios::binary);
@@ -80,14 +80,17 @@ bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> 
     
   
     file.seekg(offset, std::ios::beg);
-    size_t dataSize = samples_per_frame * 1 * 16 * sizeof(std::complex<int16_t>);
+    size_t dataSize = 8000;
+    uint32_t buffer[2000];
     //size_t dataSize = samples_per_frame * 1 * 2 * sizeof(std::complex<int16_t>);
 
     if (file.peek() == EOF) {
 	throw EndOfStreamException("readVDIFData");
     }
    
-    file.read(reinterpret_cast<char*>(frame), dataSize);
+    file.read(reinterpret_cast<char*>(&buffer), dataSize);
+
+    decode(buffer, frame);
 
     file.close();
     return true;
@@ -195,6 +198,23 @@ void VDIFStream::print_vdif_header(VDIFHeader header) {
         std::cout << "user_data4: " << header.user_data4 << std::endl;
 }
 
+
+void VDIFStream::decode(uint32_t words[2000], float (*data)[1][16]) {
+    for (size_t i = 0; i < 2000; i++) {
+        float samples[16];
+	decode_word(words[i], samples);
+	
+	for (size_t j = 0; j < 16; j++) {
+	    data[i][0][j] = samples[j];
+	}
+    }
+}
+
+void VDIFStream::decode_word(uint32_t word, float samples[16]) {
+    for (int i = 0; i < 16; i++) {
+        samples[i] = DECODER_LEVEL[(word >> (i * 2)) & 0b11];
+    }
+}
 
 VDIFStream::~VDIFStream() {}
 

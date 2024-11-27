@@ -238,7 +238,9 @@ void filterAndCorrect(
 #endif
       }
 
-      fft_data[time_minor][channel] = make_float2(sum[REAL], sum[IMAG]);
+      // fft_data[time_minor][channel] = make_float2(sum[REAL], sum[IMAG]);
+      InputSample sample = input[receiver][polarization][time_major + time_minor + NR_TAPS - 1][channel];
+      fft_data[time_minor][channel] = make_float2(sample.x, sample.y);
 #endif
     }
 

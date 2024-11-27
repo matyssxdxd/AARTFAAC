@@ -37,12 +37,12 @@ struct VDIFHeader {
 
 struct Frame {
         VDIFHeader header{};
-        std::complex<int16_t> (*samples)[1][16];
+        float (*samples)[1][16];
         //std::complex<int16_t> (*samples)[1][2];
 
 
         Frame() {
-                samples = new std::complex<int16_t>[2000][1][16];
+                samples = new float[2000][1][16];
                 //samples = new std::complex<int16_t>[16000][1][2];
         }
 
@@ -52,7 +52,7 @@ struct Frame {
 
 
         TimeStamp timeStamp(TimeStamp epoch, double subbandBandwidth, unsigned sample_in_frame) {
-                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second - 1) * 2000 + sample_in_frame;
+                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second) * 2000 + sample_in_frame;
                 //return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second - 1) * 16000 + sample_in_frame;
         }
 };
@@ -68,6 +68,13 @@ private:
 	int number_of_headers;
         int number_of_frames;
 
+	float OPTIMAL_2BIT_HIGH = 3.316505f;
+
+	float DECODER_LEVEL[4] = { -OPTIMAL_2BIT_HIGH, -1.0f, 1.0f, OPTIMAL_2BIT_HIGH };
+
+	void decode_word(uint32_t word, float samples[16]);
+	void decode(uint32_t words[2000], float (*data)[1][16]);
+
 	uint32_t current_timestamp;
 	
 	string input_file_;
@@ -82,7 +89,7 @@ public:
     int        get_samples_per_frame();
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t flag);
-    bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][16], size_t samples_per_frame,  off_t offset);
+    bool       readVDIFData(const std::string filePath, float (*frame)[1][16], size_t samples_per_frame,  off_t offset);
     //bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset);
 
    void print_vdif_header(VDIFHeader header_);
