@@ -91,7 +91,7 @@ void Visibilities::write(Stream *stream)
   }
 #endif
 
-  //if (subband == 0)
+//  if (subband == 0)
     for (unsigned channel = 0; channel < ps.nrOutputChannelsPerSubband(); channel ++)
     //for (unsigned channel = 42; channel < 43; channel ++)
       for (unsigned baseline = 1; baseline < 2; baseline ++)
