@@ -18,7 +18,8 @@
 
 using namespace std;
 
-VDIFStream::VDIFStream(string input_file) {
+VDIFStream::VDIFStream(string input_file)
+	: file(input_file, std::ios::binary) {
     samples_per_frame = 2000;
     //samples_per_frame = 16000;
     number_of_headers = 0;
@@ -45,7 +46,6 @@ string VDIFStream::get_input_file(){ return   input_file_;  }
 
 
 bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t offset) {
-	std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filePath << std::endl;
         return false;
@@ -64,7 +64,6 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
         return false;
     }
     
-    file.close();
     return true;
 }
 
@@ -72,7 +71,6 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 bool VDIFStream::readVDIFData(const std::string filePath, float (*frame)[1][16], size_t samples_per_frame, off_t offset) {
 //bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset {
 
-    std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filePath << std::endl;
         return false;
@@ -92,7 +90,6 @@ bool VDIFStream::readVDIFData(const std::string filePath, float (*frame)[1][16],
 
     decode(buffer, frame);
 
-    file.close();
     return true;
 }
 
@@ -216,6 +213,8 @@ void VDIFStream::decode_word(uint32_t word, float samples[16]) {
     }
 }
 
-VDIFStream::~VDIFStream() {}
+VDIFStream::~VDIFStream() {
+    file.close();
+}
 
 

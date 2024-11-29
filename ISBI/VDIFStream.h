@@ -4,6 +4,7 @@
 #include "Common/Stream/FileStream.h"
 #include "Common/TimeStamp.h"
 
+#include <fstream>
 #include <complex>
 
 
@@ -59,7 +60,7 @@ struct Frame {
 
 class VDIFStream : public Stream{
 private:
-        //FileStream *in_stream;
+	std::ifstream file;
 
 	VDIFHeader first_header;
 	VDIFHeader current_header;

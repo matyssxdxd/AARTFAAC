@@ -94,7 +94,7 @@ void Visibilities::write(Stream *stream)
 //  if (subband == 0)
     for (unsigned channel = 0; channel < ps.nrOutputChannelsPerSubband(); channel ++)
     //for (unsigned channel = 42; channel < 43; channel ++)
-      for (unsigned baseline = 2; baseline < 3; baseline ++)
+      for (unsigned baseline = 1; baseline < 2; baseline ++)
 	for (unsigned pol = 0; pol < 1; pol ++)
 #pragma omp critical (clog)
 	  std::clog << "vis: " << subband << ' ' << channel << ' ' << baseline << ' ' << pol << " = " << hostVisibilities[baseline][channel][pol] << std::endl;
