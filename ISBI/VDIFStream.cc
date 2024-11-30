@@ -21,7 +21,7 @@
 using namespace std;
 
 VDIFStream::VDIFStream(string input_file)
-	: file(input_file, std::ios::binary) {
+	: file(input_file, std::ios::binary) 
 	if (!file.is_open()) {
 		throw std::runtime_error("Failed to open file");
 	}
