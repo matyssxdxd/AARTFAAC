@@ -15,6 +15,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <vector>
 
 #undef FAKE_TIMES
 #undef USE_RECVMMSG
@@ -138,7 +139,7 @@ InputBuffer::~InputBuffer()
 }
 
 
-void InputBuffer::handleConsecutivePackets(Frame packetBuffer[maxNrPacketsInBuffer], unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
+void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
   TimeStamp beginTime = packetBuffer[0].timeStamp(epoch, ps.subbandBandwidth(), 0);
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
@@ -212,7 +213,11 @@ void InputBuffer::inputThreadBody(){
   std::cout << "samples_per_frame " << samples_per_frame  << std::endl;
   std::cout << "nr_channels " << nr_channels  << std::endl; 
   
-  Frame frames[maxNrPacketsInBuffer];
+  std::vector<Frame> frames;
+
+  for (unsigned i = 0; i < maxNrPacketsInBuffer; i++) {
+      frames.emplace_back(samples_per_frame, 1, nr_channels);
+  }
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
