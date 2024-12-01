@@ -21,7 +21,7 @@
 using namespace std;
 
 VDIFStream::VDIFStream(string input_file)
-	: file(input_file, std::ios::binary) 
+	: file(input_file, std::ios::binary) { 
 	if (!file.is_open()) {
 		throw std::runtime_error("Failed to open file");
 	}
@@ -86,7 +86,7 @@ bool VDIFStream::readVDIFData(const std::string filePath, boost::multi_array<flo
     
   
     file.seekg(offset, std::ios::beg);
-    size_t dataSize = first_header.dataframe_length * 8 - 32;
+    size_t dataSize = first_header.dataframe_length * 8 - 32 +  16 * static_cast<int>(first_header.legacy_mode);
     std::vector<uint32_t> buffer(dataSize / sizeof(uint32_t));
     //size_t dataSize = samples_per_frame * 1 * 2 * sizeof(std::complex<int16_t>);
 
