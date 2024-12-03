@@ -76,7 +76,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 }
 
 
-bool VDIFStream::readVDIFData(const std::string filePath, boost::multi_array<float, 3> &frame, size_t samples_per_frame, off_t offset) {
+bool VDIFStream::readVDIFData(const std::string filePath, boost::multi_array<std::complex<int16_t>, 3> &frame, size_t samples_per_frame, off_t offset) {
 //bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset {
 
     if (!file.is_open()) {
@@ -86,7 +86,7 @@ bool VDIFStream::readVDIFData(const std::string filePath, boost::multi_array<flo
     
   
     file.seekg(offset, std::ios::beg);
-    size_t dataSize = first_header.dataframe_length * 8 - 32;
+    size_t dataSize = first_header.dataframe_length * 8 - 32; // 1004 * 8 = 8032 - 32 = 8000 bytes
     std::vector<uint32_t> buffer(dataSize / sizeof(uint32_t));
     //size_t dataSize = samples_per_frame * 1 * 2 * sizeof(std::complex<int16_t>);
 
@@ -204,9 +204,9 @@ void VDIFStream::print_vdif_header(VDIFHeader header) {
 }
 
 
-void VDIFStream::decode(std::vector<uint32_t> &words, boost::multi_array<float, 3> &data) {
+void VDIFStream::decode(std::vector<uint32_t> &words, boost::multi_array<std::complex<int16_t>, 3> &data) {
     for (size_t i = 0; i < samples_per_frame; i++) {
-	std::vector<float> decoded_samples(number_of_channels);
+	std::vector<std::complex<int16_t>> decoded_samples(number_of_channels);
 	decode_word(words[i], decoded_samples);
 	
 	for (size_t j = 0; j < number_of_channels; j++) {
@@ -215,7 +215,7 @@ void VDIFStream::decode(std::vector<uint32_t> &words, boost::multi_array<float, 
     }
 }
 
-void VDIFStream::decode_word(uint32_t word, std::vector<float> &data) {
+void VDIFStream::decode_word(uint32_t word, std::vector<std::complex<int16_t>> &data) {
     for (int i = 0; i < number_of_channels; i++) {
         data[i] = DECODER_LEVEL[(word >> (i * 2)) & 0b11];
     }

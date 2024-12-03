@@ -160,7 +160,7 @@ void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, uns
 	  for (unsigned pol = 0; pol < 2; pol ++) {
 	    unsigned mappedIndex = (int[]) { 2, 6, 10, 14, 3, 7, 11, 15, 0, 4, 8, 12, 1, 5, 9, 13 }[2 * subband + pol];
 	    //unsigned mappedIndex = (int[]) { 0, 1 }[2 * subband + pol];
-	    *reinterpret_cast<float *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
+	    *reinterpret_cast<complex<int16_t> *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
 	  }
 	}
 
