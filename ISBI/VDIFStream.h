@@ -52,37 +52,37 @@ struct Frame {
 	      samples(boost::extents[samples_per_frame][number_of_threads][number_of_channels]) {}
 	
 	TimeStamp timeStamp(TimeStamp epoch, double subbandBandwidth, unsigned sample_in_frame) {
-       	    // unsigned ref_year = 2000 * header.ref_epoch / 2;
-	    // unsigned ref_month = 6 * (header.ref_epoch & 1);
-	    // unsigned n = header.sec_from_epoch;
-	    // unsigned day = n / (24 * 3600);
-	    // 
-	    // n = n % (24 * 3600);
-	    // int hour = n / 3600;
+	    unsigned ref_year = 2000 + header.ref_epoch / 2;
+            unsigned ref_month = 6 * (header.ref_epoch & 1);
+            int n = header.sec_from_epoch;
+            int day = n / (24 * 3600);
 
-	    // n %= 3600;
-	    // int minutes = n / 60;
+            n = n % (24 * 3600);
+            int hour = n / 3600;
 
-	    // n %= 60;
-	    // int seconds = n;
+            n %= 3600;
+            int minutes = n / 60 ;
 
-	    // tm datetime;
-	    // datetime.tm_year = ref_year - 1900;
-	    // datetime.tm_mon = ref_month;
-	    // datetime.tm_mday = day;
-	    // datetime.tm_hour = hour;
-	    // datetime.tm_min = minutes;
-	    // datetime.tm_sec = seconds;
-	    // datetime.tm_isdst = -1;
-	    // mktime(&datetime);
+            n %= 60;
+            int seconds = n;
 
-	    // char buffer[20];
-	    // strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &datetime);
-	    // std::cout << buffer << "\n";
-	    // TimeStamp timestamp = TimeStamp::fromDate(buffer, subbandBandwidth);
-	    // std::cout << timestamp << "\n";
-	    // return timestamp;
-       	    return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + header.dataframe_in_second * samples_per_frame;
+            tm datetime;
+            datetime.tm_year = ref_year - 1900;
+            datetime.tm_mon = ref_month;
+            datetime.tm_mday = day;
+            datetime.tm_hour = hour;
+            datetime.tm_min = minutes;
+            datetime.tm_sec = 16;
+            datetime.tm_isdst = -1;
+            mktime(&datetime);
+
+            char buffer[20];
+            strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &datetime);
+            std::cout << buffer << std::endl;
+
+	    TimeStamp timestamp = TimeStamp::fromDate(buffer, subbandBandwidth);
+	    return timestamp + header.dataframe_in_second * samples_per_frame;
+       	    // return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + header.dataframe_in_second * samples_per_frame;
 	}
 };
 
@@ -98,9 +98,8 @@ private:
         int number_of_frames;
 	uint32_t number_of_channels;
 //	float OPTIMAL_2BIT_HIGH = 3.316505f;
-	int16_t OPTIMAL_2BIT_HIGH = 10;
 //	float DECODER_LEVEL[4] = { -OPTIMAL_2BIT_HIGH, -1.0f, 1.0f, OPTIMAL_2BIT_HIGH };
-	int16_t DECODER_LEVEL[4] { -OPTIMAL_2BIT_HIGH, -3, 3, OPTIMAL_2BIT_HIGH };
+	int16_t DECODER_LEVEL[4] { -10, -3, 3, 10 };
 	void decode_word(uint32_t word, std::vector<std::complex<int16_t>> &samples);
 	void decode(std::vector<uint32_t> &words, boost::multi_array<std::complex<int16_t>, 3> &data);
 
