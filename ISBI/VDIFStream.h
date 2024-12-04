@@ -15,19 +15,19 @@ using namespace std;
 struct VDIFHeader {
     // Word 0
     uint32_t      sec_from_epoch:30;
-    uint8_t       legacy_mode:1, invalid:1;
+    uint32_t       legacy_mode:1, invalid:1;
     // Word 1
     uint32_t      dataframe_in_second:24;
-    uint8_t       ref_epoch:6, unassiged:2;
+    uint32_t       ref_epoch:6, unassiged:2;
     // Word 2
     uint32_t      dataframe_length:24;
-    uint8_t       log2_nchan:5, version:3;
+    uint32_t       log2_nchan:5, version:3;
     // Word 3
-    uint16_t      station_id:16, thread_id:10;
-    uint8_t       bits_per_sample:5, data_type:1;
+    uint32_t      station_id:16, thread_id:10;
+    uint32_t       bits_per_sample:5, data_type:1;
     // Word 4
     uint32_t      user_data1:24;
-    uint8_t       edv:8;
+    uint32_t       edv:8;
     // Word 5-7
     uint32_t      user_data2,user_data3,user_data4;
 
@@ -52,33 +52,39 @@ struct Frame {
 	      samples(boost::extents[samples_per_frame][number_of_threads][number_of_channels]) {}
 	
 	TimeStamp timeStamp(TimeStamp epoch, double subbandBandwidth, unsigned sample_in_frame) {
-	    unsigned ref_year = 2000 + header.ref_epoch / 2;
-            unsigned ref_month = 6 * (header.ref_epoch & 1);
-            int n = header.sec_from_epoch;
-            int day = n / (24 * 3600);
+	    const uint32_t SECONDS_IN_DAY = 86400;
+	    const uint32_t SECONDS_IN_HOUR = 3600;
+	    const uint32_t SECONDS_IN_MINUTE = 60;
+	
+	    uint32_t ref_year = 2000 + header.ref_epoch / 2;
+            uint32_t ref_month = 6 * (header.ref_epoch & 1);
 
-            n = n % (24 * 3600);
-            int hour = n / 3600;
+	    uint32_t ref_seconds = header.sec_from_epoch;
 
-            n %= 3600;
-            int minutes = n / 60 ;
+	    uint32_t ref_days = ref_seconds / SECONDS_IN_DAY;
 
-            n %= 60;
-            int seconds = n;
+	    ref_seconds %= SECONDS_IN_DAY;
 
-            tm datetime;
+	    uint32_t ref_hours = ref_seconds / SECONDS_IN_HOUR;
+
+	    ref_seconds %= SECONDS_IN_HOUR;
+
+	    uint32_t ref_minutes = ref_seconds / SECONDS_IN_MINUTE;
+
+	    ref_seconds %= SECONDS_IN_MINUTE;
+
+	    tm datetime;
             datetime.tm_year = ref_year - 1900;
             datetime.tm_mon = ref_month;
-            datetime.tm_mday = day;
-            datetime.tm_hour = hour;
-            datetime.tm_min = minutes;
-            datetime.tm_sec = 16;
+            datetime.tm_mday = ref_days + 1;
+            datetime.tm_hour = ref_hours;
+            datetime.tm_min = ref_minutes;
+            datetime.tm_sec = ref_seconds;
             datetime.tm_isdst = -1;
             mktime(&datetime);
 
             char buffer[20];
             strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &datetime);
-            std::cout << buffer << std::endl;
 
 	    TimeStamp timestamp = TimeStamp::fromDate(buffer, subbandBandwidth);
 	    return timestamp + header.dataframe_in_second * samples_per_frame;
