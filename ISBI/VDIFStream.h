@@ -8,7 +8,7 @@
 #include <complex>
 #include <vector>
 #include <boost/multi_array.hpp>
-
+#include <ctime>
 
 using namespace std;
 
@@ -52,8 +52,38 @@ struct Frame {
 	      samples(boost::extents[samples_per_frame][number_of_threads][number_of_channels]) {}
 	
 	TimeStamp timeStamp(TimeStamp epoch, double subbandBandwidth, unsigned sample_in_frame) {
-                return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + (header.dataframe_in_second) * samples_per_frame;
-        }
+       	    // unsigned ref_year = 2000 * header.ref_epoch / 2;
+	    // unsigned ref_month = 6 * (header.ref_epoch & 1);
+	    // unsigned n = header.sec_from_epoch;
+	    // unsigned day = n / (24 * 3600);
+	    // 
+	    // n = n % (24 * 3600);
+	    // int hour = n / 3600;
+
+	    // n %= 3600;
+	    // int minutes = n / 60;
+
+	    // n %= 60;
+	    // int seconds = n;
+
+	    // tm datetime;
+	    // datetime.tm_year = ref_year - 1900;
+	    // datetime.tm_mon = ref_month;
+	    // datetime.tm_mday = day;
+	    // datetime.tm_hour = hour;
+	    // datetime.tm_min = minutes;
+	    // datetime.tm_sec = seconds;
+	    // datetime.tm_isdst = -1;
+	    // mktime(&datetime);
+
+	    // char buffer[20];
+	    // strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &datetime);
+	    // std::cout << buffer << "\n";
+	    // TimeStamp timestamp = TimeStamp::fromDate(buffer, subbandBandwidth);
+	    // std::cout << timestamp << "\n";
+	    // return timestamp;
+       	    return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + header.dataframe_in_second * samples_per_frame;
+	}
 };
 
 class VDIFStream : public Stream{
