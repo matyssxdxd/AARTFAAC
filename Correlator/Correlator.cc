@@ -90,7 +90,13 @@ int main(int argc, char **argv)
     double runTime = omp_get_wtime() - startTime;
 
 #pragma omp critical (cout)
-    std::cout << "total: " << runTime << " s" << std::endl;
+    {
+      std::cout << "total: " << runTime << " s"
+#if defined MEASURE_POWER
+		", " << PowerSensor3::Joules(pipeline.startState, pipeline.stopState) << " J"
+#endif
+	        << std::endl;
+    }
 
 #if !defined CREATE_BACKTRACE_ON_EXCEPTION
   } catch (cu::Error &ex) {

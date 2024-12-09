@@ -12,7 +12,6 @@
 CorrelatorPipeline::CorrelatorPipeline(const CorrelatorParset &ps)
 :
   ps(ps),
-  filterBank(true, NR_TAPS, ps.nrChannelsPerSubband(), KAISER),
   deviceInstances(ps.nrGPUs()),
   transposeCounter("transpose", ps.profiling()),
   filterAndCorrectCounter("filt.correct", ps.profiling()),
@@ -21,8 +20,6 @@ CorrelatorPipeline::CorrelatorPipeline(const CorrelatorParset &ps)
   samplesCounter("samples", ps.profiling()),
   visibilitiesCounter("visibilities", ps.profiling())
 {
-  filterBank.negateWeights();
-  //filterBank.printWeights();
   createDeviceInstances();
 }
 

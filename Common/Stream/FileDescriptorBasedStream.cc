@@ -20,7 +20,7 @@ FileDescriptorBasedStream::~FileDescriptorBasedStream() noexcept(false)
 {
   //ScopedDelayCancellation dc; // close() can throw as it is a cancellation point
 
-  if (fd >= 0 && close(fd) < 0 && !std::uncaught_exception())
+  if (fd >= 0 && close(fd) < 0 && !std::uncaught_exceptions())
     throw SystemCallException("close", errno);
 }
 

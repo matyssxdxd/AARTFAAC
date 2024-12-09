@@ -3,10 +3,10 @@
 
 #include "Common/PowerSensor.h"
 
-#include </var/scratch/jsteinbe/tensor-core-correlator/build/_deps/cudawrappers-src/include/cudawrappers/cu.hpp>
+#include <cudawrappers/cu.hpp>
 
 #if defined MEASURE_POWER
-#include <string>
+#include <PowerSensor.hpp>
 #endif
 
 
@@ -19,13 +19,19 @@ class PerformanceCounter
 	~Measurement();
 
       private:
-	PerformanceCounter &counter;
-	cu::Stream         &stream;
-	cu::Event          startEvent;
+	struct State {
+	  State(PerformanceCounter &counter) : counter(counter) {}
+
+	  cu::Event          startEvent, stopEvent;
+	  PerformanceCounter &counter;
 
 #if defined MEASURE_POWER
-	PowerSensor::State psState;
+	  PowerSensor3::State psStartState;
 #endif
+	} *state;
+
+	PerformanceCounter &counter;
+	cu::Stream         &stream;
     };
 
     PerformanceCounter(const std::string &name, bool profiling);
@@ -34,15 +40,11 @@ class PerformanceCounter
   private:
     friend class Measurement;
 
-#if defined MEASURE_POWER
-    static void       startPowerMeasurement(cl_event, cl_int /*status*/, void *descriptor);
-    static void       stopPowerMeasurement(cl_event, cl_int /*status*/, void *descriptor);
-
-    double	      totalJoules;
-#endif
-
   public:
     size_t	      totalNrOperations, totalNrBytesRead, totalNrBytesWritten;
+#if defined MEASURE_POWER
+    double	      totalJoules;
+#endif
     double	      totalTime;
     unsigned	      nrTimes;
     const std::string name;

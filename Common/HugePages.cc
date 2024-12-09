@@ -1,6 +1,6 @@
 #include "Common/Config.h"
 
-#include "Common/Align.h"
+#include <libfilter/Align.h>
 #include "Common/HugePages.h"
 #include "Common/SystemCallException.h"
 
@@ -20,6 +20,6 @@ HugePages::HugePages(size_t size)
 
 HugePages::~HugePages() noexcept(false)
 {
-  if (munmap(ptr, allocated) != 0 && !std::uncaught_exception())
+  if (munmap(ptr, allocated) != 0 && !std::uncaught_exceptions())
     throw SystemCallException("munmap");
 }

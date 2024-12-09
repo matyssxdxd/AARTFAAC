@@ -1,10 +1,9 @@
-#include "Common/BandPass.h"
 #include "Common/Config.h"
 #include "Common/PowerSensor.h"
 #include "Correlator/CorrelatorPipeline.h"
 #include "Correlator/DeviceInstance.h"
 
-#include </var/scratch/jsteinbe/tensor-core-correlator/build/_deps/cudawrappers-src/include/cudawrappers/nvrtc.hpp>
+#include <cudawrappers/nvrtc.hpp>
 
 #include <cuda_fp16.h>
 #include <omp.h>
@@ -21,7 +20,7 @@ inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
 #endif
 
 
-extern const char _binary_Correlator_Kernels_FilterAndCorrect_cu_start, _binary_Correlator_Kernels_FilterAndCorrect_cu_end;
+extern const char _binary_Correlator_Kernels_Transpose_cu_start, _binary_Correlator_Kernels_Transpose_cu_end;
 
 
 DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
@@ -43,34 +42,54 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
   context(CU_CTX_SCHED_BLOCKING_SYNC, device),
   //integratedMemory(device.getAttribute(CU_DEVICE_ATTRIBUTE_INTEGRATED)),
 
+  filterFuture(std::async([&] {
+    context.setCurrent();
+
+    tcc::FilterArgs filterArgs;
+    filterArgs.nrReceivers = ps.nrStations();
+    filterArgs.nrChannels = ps.nrChannelsPerSubband();
+    filterArgs.nrSamplesPerChannel = ps.nrSamplesPerChannel();
+    filterArgs.nrPolarizations = ps.nrPolarizations();
+
+    filterArgs.input = tcc::FilterArgs::Input {
+    	.sampleFormat = tcc::FilterArgs::Format::i16
+    };
+
+    filterArgs.firFilter = tcc::FilterArgs::FIR_Filter {
+    	.nrTaps = 16,
+	.sampleFormat = tcc::FilterArgs::Format::fp32
+    };
+
+    filterArgs.fft = tcc::FilterArgs::FFT {
+    	.sampleFormat = tcc::FilterArgs::Format::fp32,
+        .shift = true
+    };
+
+    filterArgs.applyDelays = false;
+
+    // filterArgs.output = tcc::FilterArgs::Output {
+    // 	.sampleFormat = tcc::FilterArgs::Format::fp16,
+    //     .scaleFactor = 1.0f;
+    // };
+    return tcc::Filter(device, filterArgs);
+  })),
+
   tccFuture(std::async([&] {
     context.setCurrent();
-    return TCC(ps);
+    return TCC(device, ps);
   })),
-  filterAndCorrectFuture(std::async([&] {
-    if (ps.nrSamplesPerChannel() % NR_TAPS != 0) {
-      std::cerr << "nr_samples_per_channel time is not a multiple of " << NR_TAPS << std::endl;
-      exit(1);
-    }
 
+  transposeFuture(std::async([&] {
     context.setCurrent();
-    nvrtc::Program program(std::string(&_binary_Correlator_Kernels_FilterAndCorrect_cu_start, &_binary_Correlator_Kernels_FilterAndCorrect_cu_end), "Correlator/Kernels/FilterAndCorrect.cu");
+    nvrtc::Program program(std::string(&_binary_Correlator_Kernels_Transpose_cu_start, &_binary_Correlator_Kernels_Transpose_cu_end), "Correlator/Kernels/Transpose.cu");
     return Module(device, program, ps);
   })),
-  devFilterWeightsBuffer(ps.nrChannelsPerSubband() * NR_TAPS * sizeof(float)),
-  devBandPassCorrectionWeights(ps.nrChannelsPerSubband() * sizeof(float)),
-  //devPhaseOffsets(ps.nrBeams() * ps.nrPolarizations() * sizeof(float)),
-#if !defined USE_FUSED_KERNEL
-  //devFilteredData(ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrChannelsPerSubband() * sizeof(std::complex<float>)),
-#endif
   devTransposedInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerComplexSample()),
-  devUntransposedOutputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * ps.nrSamplesPerChannel() * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrBytesPerComplexSample()),
-  devCorrectedData((size_t) ps.nrOutputChannelsPerSubband() * ps.nrSamplesPerChannel() * ps.channelIntegrationFactor() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
+  devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
 
-  filterAndCorrectModule(filterAndCorrectFuture.get()),
-  transposeKernel(ps, device, filterAndCorrectModule),
-  filterAndCorrectKernel(ps, filterAndCorrectModule),
-  postTransposeKernel(ps, filterAndCorrectModule),
+  transposeModule(transposeFuture.get()),
+  transposeKernel(ps, device, transposeModule),
+  filter(filterFuture.get()),
   tcc(tccFuture.get()),
 
   previousTime(~0)
@@ -111,14 +130,6 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
   // do not wait for these events during first iteration, so generate them
   // already once during initialization
   //executeStream.record(inputDataFree);
-
-  executeStream.memcpyHtoDAsync(devFilterWeightsBuffer, pipeline.filterBank.getWeights().origin(), ps.nrChannelsPerSubband() * NR_TAPS * sizeof(float));
-
-  if (ps.correctBandPass()) {
-    std::vector<float> hostBandPassCorrectionWeights(ps.nrChannelsPerSubband());
-    BandPass::computeCorrectionFactors(hostBandPassCorrectionWeights.data(), ps.nrChannelsPerSubband());
-    executeStream.memcpyHtoDAsync(devBandPassCorrectionWeights, hostBandPassCorrectionWeights.data(), ps.nrChannelsPerSubband() * sizeof(float));
-  }
 
   executeStream.synchronize();
 
@@ -190,22 +201,13 @@ void DeviceInstance::doSubband(const TimeStamp &time,
 				startIndex,
 				pipeline.transposeCounter);
 
-    filterAndCorrectKernel.launchAsync(executeStream,
-				       devUntransposedOutputBuffer,
-				       devTransposedInputBuffer,
-				       devFilterWeightsBuffer,
-				       cu::DeviceMemory(hostDelaysAtBegin),
-				       devBandPassCorrectionWeights,
-				       // FIXME ps.subbandFrequencies()[subband],
-				       pipeline.filterAndCorrectCounter);
-
-    postTransposeKernel.launchAsync(executeStream,
-				    devCorrectedData,
-				    devUntransposedOutputBuffer,
-				    pipeline.postTransposeCounter);
+    filter.launchAsync(executeStream,
+		       devCorrectedData,
+		       devTransposedInputBuffer); 
 
     cu::DeviceMemory devVisibilities(hostVisibilities);
-    tcc.launchAsync(executeStream, devVisibilities, devCorrectedData, pipeline.correlateCounter);
+    cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
+    tcc.launchAsync(executeStream, devVisibilities, devCorrectedDataChannel0skipped, pipeline.correlateCounter);
   }
 
   executeStream.synchronize();
@@ -264,19 +266,9 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
 
-    filterAndCorrectKernel.launchAsync(executeStream,
-				       devUntransposedOutputBuffer,
-				       devTransposedInputBuffer,
-				       devFilterWeightsBuffer,
-				       devDelaysAtBegin, // FIXME
-				       devBandPassCorrectionWeights,
-				       // FIXME ps.subbandFrequencies()[subband],
-				       pipeline.filterAndCorrectCounter);
-
-    postTransposeKernel.launchAsync(executeStream,
-				    devCorrectedData,
-				    devUntransposedOutputBuffer,
-				    pipeline.postTransposeCounter);
+    filter.launchAsync(executeStream,
+		       devCorrectedData,
+		       devTransposedInputBuffer); 
 
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
 
@@ -300,7 +292,8 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     exit(0);
 #endif
 
-    tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedData, pipeline.correlateCounter);
+    cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
+    tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedDataChannel0skipped, pipeline.correlateCounter);
     executeStream.record(computeReady);
     deviceToHostStream.wait(computeReady);
 

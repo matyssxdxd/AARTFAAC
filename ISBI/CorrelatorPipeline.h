@@ -5,7 +5,7 @@
 #include "ISBI/OutputSection.h"
 //#include "ISBI/CorrelatorPipeline.h"
 #include "ISBI/Parset.h"
-#include "Common/FilterBank.h"
+#include <libfilter/FilterBank.h>
 #include "Common/PerformanceCounter.h"
 #include "Common/SlidingPointer.h"
 #include "Correlator/CorrelatorPipeline.h"

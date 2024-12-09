@@ -3,8 +3,7 @@
 
 #include "Common/Affinity.h"
 #include "Common/CUDA_Support.h"
-#include "Correlator/Kernels/FilterAndCorrectKernel.h"
-#include "Correlator/Kernels/PostTransposeKernel.h"
+#include "libfilter/Filter.h"
 #include "Correlator/Kernels/TransposeKernel.h"
 #include "Correlator/TCC.h"
 
@@ -57,19 +56,15 @@ class DeviceInstance
     cu::Stream			executeStream;
 
   protected:
+    std::future<tcc::Filter>		filterFuture; // compile asynchronously
     std::future<TCC>		tccFuture; // compile asynchronously
-    std::future<Module>         filterAndCorrectFuture;
-    cu::DeviceMemory		devFilterWeightsBuffer;
-    cu::DeviceMemory		devBandPassCorrectionWeights;
-    //cu::DeviceMemory		devPhaseOffsets;
+    std::future<Module>         transposeFuture;
     cu::DeviceMemory		devTransposedInputBuffer;
-    cu::DeviceMemory		devUntransposedOutputBuffer;
     cu::DeviceMemory		devCorrectedData;
 
-    Module			filterAndCorrectModule;
+    Module			transposeModule;
     TransposeKernel		transposeKernel;
-    FilterAndCorrectKernel	filterAndCorrectKernel;
-    PostTransposeKernel		postTransposeKernel;
+    tcc::Filter			filter;
     TCC				tcc;
 
     std::mutex			enqueueMutex;

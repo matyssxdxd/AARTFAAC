@@ -1,5 +1,5 @@
 #include "Common/BandPass.h"
-#include "Common/FilterBank.h"
+#include <libfilter/FilterBank.h>
 #include "Common/Stream/FileStream.h"
 
 #include <byteswap.h>

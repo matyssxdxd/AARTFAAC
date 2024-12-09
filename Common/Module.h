@@ -3,8 +3,8 @@
 
 #include "Common/Parset.h"
 
-#include </var/scratch/jsteinbe/tensor-core-correlator/build/_deps/cudawrappers-src/include/cudawrappers/cu.hpp>
-#include </var/scratch/jsteinbe/tensor-core-correlator/build/_deps/cudawrappers-src/include/cudawrappers/nvrtc.hpp>
+#include <cudawrappers/cu.hpp>
+#include <cudawrappers/nvrtc.hpp>
 
 #include <string>
 #include <vector>

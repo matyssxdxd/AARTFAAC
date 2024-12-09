@@ -10,7 +10,6 @@
 #define USE_NEW_CORRELATOR
 //#define USE_PHI_CORRELATOR
 #define USE_2X2
-#undef MEASURE_POWER
 
 #define NR_TAPS			16
 #define NR_STATION_FILTER_TAPS	16

@@ -1,9 +1,10 @@
 #include "Correlator/TCC.h"
 
 
-TCC::TCC(const CorrelatorParset &ps)
+TCC::TCC(const cu::Device &device, const CorrelatorParset &ps)
 :
-  tcc(ps.nrBitsPerSample(),
+  tcc(device,
+      ps.nrBitsPerSample(),
       ps.nrStations(),
       ps.nrOutputChannelsPerSubband(),
       ps.nrSamplesPerChannel() * ps.channelIntegrationFactor(),

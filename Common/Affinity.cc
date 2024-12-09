@@ -151,11 +151,11 @@ BoundThread::BoundThread(const cpu_set_t &cpuset)
 
 BoundThread::~BoundThread() noexcept(false)
 {
-  if (sched_setaffinity(0, sizeof old_cpuset, &old_cpuset) < 0 && !std::uncaught_exception())
+  if (sched_setaffinity(0, sizeof old_cpuset, &old_cpuset) < 0 && !std::uncaught_exceptions())
     throw SystemCallException("sched_setaffinity");
     
 #if 0
-  if (set_mempolicy(old_mode, &old_nodemask, sizeof old_nodemask) < 0 && !std::uncaught_exception())
+  if (set_mempolicy(old_mode, &old_nodemask, sizeof old_nodemask) < 0 && !std::uncaught_exceptions())
     throw SystemCallException("set_mempolicy");
 #endif
 }

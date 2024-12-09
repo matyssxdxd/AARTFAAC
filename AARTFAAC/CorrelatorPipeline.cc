@@ -29,6 +29,10 @@ void AARTFAAC_CorrelatorPipeline::doWork()
 {
   double startTime = omp_get_wtime();
 
+#if defined MEASURE_POWER
+  startState = powerSensor.read();
+#endif
+
 #pragma omp parallel num_threads(ps.nrQueuesPerGPU() * ps.nrGPUs())
   {
 #if !defined CREATE_BACKTRACE_ON_EXCEPTION
@@ -52,8 +56,18 @@ void AARTFAAC_CorrelatorPipeline::doWork()
 
   double runTime = omp_get_wtime() - startTime;
 
+#if defined MEASURE_POWER
+  stopState = powerSensor.read();
+#endif
+
 #pragma omp critical (cout)
-  std::cout << "total: " << runTime << " s" << std::endl;
+  {
+    std::cout << "total: " << runTime << " s"
+#if defined MEASURE_POWER
+              ", " << PowerSensor3::Joules(startState, stopState) << " J"
+#endif
+	      << std::endl;
+  }
 }
 
 

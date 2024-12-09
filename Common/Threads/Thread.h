@@ -89,10 +89,10 @@ inline Thread::~Thread() noexcept(false)
 
   int retval;
 
-  if ((retval = pthread_join(thread, 0)) != 0 && !std::uncaught_exception())
+  if ((retval = pthread_join(thread, 0)) != 0 && !std::uncaught_exceptions())
     throw SystemCallException("pthread_join", retval);
 
-  if (exception_ptr != 0 && !std::uncaught_exception())
+  if (exception_ptr != 0 && !std::uncaught_exceptions())
     std::rethrow_exception(exception_ptr);
 }
 

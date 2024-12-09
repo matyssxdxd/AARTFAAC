@@ -35,7 +35,7 @@ inline SignalHandler::SignalHandler(int signum, void (*handler) (int))
 
 inline SignalHandler::~SignalHandler() noexcept(false)
 {
-  if (sigaction(signum, &oldact, 0) < 0 && !std::uncaught_exception())
+  if (sigaction(signum, &oldact, 0) < 0 && !std::uncaught_exceptions())
     throw SystemCallException("sigaction");
 }
 

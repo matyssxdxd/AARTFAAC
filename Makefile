@@ -1,4 +1,4 @@
-ARCH=			$(shell arch)
+ARCH=			$(shell arch)	
 SRC_DIR=		\"$(shell pwd)\" # FIXME
 
 BOOST_INCLUDE ?=	$(BOOST_ROOT)/include
@@ -12,20 +12,28 @@ ifeq ("$(ARCH)", "aarch64")
 CUDA_LIB ?=		$(CUDA_ROOT)/targets/sbsa-linux/lib/stubs
 endif
 
+ifneq ("$(POWER_SENSOR3_ROOT)", "")
+POWER_SENSOR3_INCLUDE ?=$(POWER_SENSOR3_ROOT)/host/include -DMEASURE_POWER
+POWER_SENSOR3_LIB ?=	$(POWER_SENSOR3_ROOT)/build-$(ARCH)/host
+endif
+
 NVRTC_INCLUDE ?=	$(CUDA_ROOT)/include
 NVRTC_LIB ?=		$(CUDA_ROOT)/lib64
 
 FFTW_INCLUDE ?=		$(FFTW_ROOT)/include
 FFTW_LIB ?=		$(FFTW_ROOT)/lib #64
 
-TCC_INCLUDE=		$(TCC_ROOT)
-TCC_LIB=		/var/scratch/jsteinbe/install/tcc/lib64/
+FILTER_INCLUDE=		$(FILTER_ROOT)
+FILTER_LIB=		$(FILTER_ROOT)/build-x86_64/libfilter
 
-CUDA_WRAPPERS_INCLUDE=	$(TCC_ROOT)/build-$(ARCH)/_deps/cudawrappers-src/include
+TCC_INCLUDE=		$(TCC_ROOT)
+TCC_LIB=		$(TCC_ROOT)/build/libtcc
+
+CUDA_WRAPPERS_INCLUDE=	$(TCC_ROOT)/build/_deps/cudawrappers-src/include
 
 
 CXX=			g++
-CXXFLAGS=		-std=c++14\
+CXXFLAGS=		-std=c++17\
 			-DSRC_DIR=$(SRC_DIR)\
 			-march=native\
 			-g -O3\
@@ -36,7 +44,12 @@ CXXFLAGS=		-std=c++14\
 			-I$(BOOST_INCLUDE)\
 			-I$(FFTW_INCLUDE)\
 			-I$(CUDA_WRAPPERS_INCLUDE)\
-			-I$(TCC_INCLUDE)
+			-I$(TCC_INCLUDE)\
+			-I$(FILTER_INCLUDE)
+
+ifneq ("$(POWER_SENSOR3_INCLUDE)", "")
+CXXFLAGS +=		-I$(POWER_SENSOR3_INCLUDE)
+endif
 
 COMMON_SOURCES=		\
 			Common/Affinity.cc\
@@ -46,7 +59,6 @@ COMMON_SOURCES=		\
 			Common/Exceptions/Exception.cc\
 			Common/Exceptions/SymbolTable.cc\
 			Common/Function.cc\
-			Common/FilterBank.cc\
 			Common/HugePages.cc\
 			Common/LockedRanges.cc\
 			Common/Module.cc\
@@ -79,9 +91,7 @@ AARTFAAC_SOURCES=	$(COMMON_SOURCES)\
 			Correlator/CorrelatorPipeline.cc\
 			Correlator/Parset.cc\
 			Correlator/DeviceInstance.cc\
-			Correlator/Kernels/FilterAndCorrectKernel.cc\
-			Correlator/Kernels/FilterAndCorrect.cu\
-			Correlator/Kernels/PostTransposeKernel.cc\
+			Correlator/Kernels/Transpose.cu\
 			Correlator/Kernels/TransposeKernel.cc\
 			Correlator/Parset.cc\
 			Correlator/TCC.cc
@@ -100,9 +110,7 @@ CORRELATOR_SOURCES=	$(COMMON_SOURCES)\
 			Correlator/Correlator.cc\
 			Correlator/CorrelatorPipeline.cc\
 			Correlator/DeviceInstance.cc\
-			Correlator/Kernels/FilterAndCorrectKernel.cc\
-			Correlator/Kernels/FilterAndCorrect.cu\
-			Correlator/Kernels/PostTransposeKernel.cc\
+			Correlator/Kernels/Transpose.cu\
 			Correlator/Kernels/TransposeKernel.cc\
 			Correlator/Parset.cc\
 			Correlator/TCC.cc
@@ -111,36 +119,30 @@ CORRELATOR_DEVICE_INSTANCE_TEST_SOURCES=\
 			$(COMMON_SOURCES)\
 			Correlator/CorrelatorPipeline.cc\
 			Correlator/DeviceInstance.cc\
-			Correlator/Kernels/FilterAndCorrectKernel.cc\
-			Correlator/Kernels/FilterAndCorrect.cu\
-			Correlator/Kernels/PostTransposeKernel.cc\
+			Correlator/Kernels/Transpose.cu\
 			Correlator/Kernels/TransposeKernel.cc\
 			Correlator/Parset.cc\
 			Correlator/TCC.cc\
 			Correlator/Tests/DeviceInstanceTest.cc
 
-
-ISBI_SOURCES =          $(COMMON_SOURCES)\
+ISBI_SOURCES =		$(COMMON_SOURCES)\
                         ISBI/isbi.cc\
-                        ISBI/VDIFStream.cc\
+			ISBI/VDIFStream.cc\
+                        ISBI/CorrelatorPipeline.cc\
+                        ISBI/CorrelatorWorkQueue.cc\
                         ISBI/InputBuffer.cc\
                         ISBI/InputSection.cc\
-			ISBI/Parset.cc\
-			ISBI/CorrelatorPipeline.cc\
-			ISBI/CorrelatorWorkQueue.cc\
-			ISBI/OutputBuffer.cc\
-			ISBI/OutputSection.cc\
-			ISBI/Visibilities.cc\
+                        ISBI/OutputBuffer.cc\
+                        ISBI/OutputSection.cc\
+                        ISBI/Parset.cc\
+                        ISBI/Visibilities.cc\
                         Correlator/CorrelatorPipeline.cc\
                         Correlator/Parset.cc\
                         Correlator/DeviceInstance.cc\
-                        Correlator/Kernels/FilterAndCorrectKernel.cc\
-                        Correlator/Kernels/FilterAndCorrect.cu\
-                        Correlator/Kernels/PostTransposeKernel.cc\
+                        Correlator/Kernels/Transpose.cu\
                         Correlator/Kernels/TransposeKernel.cc\
                         Correlator/Parset.cc\
                         Correlator/TCC.cc
-
 
 
 ALL_SOURCES=		$(sort\
@@ -171,10 +173,16 @@ EXECUTABLES=		AARTFAAC/AARTFAAC\
 
 LIBRARIES+=		-L${BOOST_LIB} -lboost_program_options
 LIBRARIES+=		-L${FFTW_LIB} -lfftw3f
+LIBRARIES+=		-L${FILTER_LIB} -Wl,-rpath=$(FILTER_LIB) -lfilter
 LIBRARIES+=		-L${TCC_LIB} -Wl,-rpath=$(TCC_LIB) -ltcc
 LIBRARIES+=		-L${NVRTC_LIB} -Wl,-rpath=$(NVRTC_LIB) -lnvrtc
-LIBRARIES+=		-L${CUDA_LIB} -Wl,-rpath=$(CUDA_LIB) -lcuda
+LIBRARIES+=		-L/var/software/spack-v0.21.0/opt/spack/linux-rocky8-zen2/gcc-12.2.0/cuda-12.2.1-2sulvcllijdmnvye645fx7po6lwf6miv/targets/x86_64-linux/lib/stubs -Wl,-rpath=$/var/software/spack-v0.21.0/opt/spack/linux-rocky8-zen2/gcc-12.2.0/cuda-12.2.1-2sulvcllijdmnvye645fx7po6lwf6miv/targets/x86_64-linux/lib/stubs -lcuda
 LIBRARIES+=		-lnuma
+
+ifneq ("$(POWER_SENSOR3_LIB)", "")
+LIBRARIES+=		-L$(POWER_SENSOR3_LIB) -lPowerSensor
+endif
+
 
 %.d:			%.cc
 			-$(CXX) $(CXXFLAGS) -MM -MT $@ -MT ${@:%.d=%.o} $< -o $@
@@ -196,14 +204,6 @@ clean::
 
 install::		AARTFAAC/AARTFAAC
 
-nvidia-mathdx-22.11.0-Linux.tar.gz:
-			wget https://developer.download.nvidia.com/compute/mathdx/redist/mathdx/linux-x86_64/nvidia-mathdx-22.11.0-Linux.tar.gz
-
-nvidia-mathdx-22.11.0-Linux/nvidia/mathdx/22.11/include/cufftdx.hpp: nvidia-mathdx-22.11.0-Linux
-
-Correlator/Kernels/FilterAndCorrect.cu: nvidia-mathdx-22.11.0-Linux/nvidia/mathdx/22.11/include/cufftdx.hpp
-
-
 AARTFAAC/AARTFAAC:	$(AARTFAAC_OBJECTS)
 			$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBRARIES)
 
@@ -222,7 +222,6 @@ Correlator/Tests/DeviceInstanceTest:\
 
 ISBI/ISBI:              $(ISBI_OBJECTS)
 			$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBRARIES)
-
 
 ifeq (0, $(words $(findstring $(MAKECMDGOALS), clean)))
 -include $(DEPENDENCIES)

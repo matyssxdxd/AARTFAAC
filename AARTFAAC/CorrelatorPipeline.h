@@ -4,7 +4,7 @@
 #include "AARTFAAC/InputSection.h"
 #include "AARTFAAC/OutputSection.h"
 #include "Correlator/CorrelatorPipeline.h"
-#include "Common/FilterBank.h"
+#include <libfilter/FilterBank.h>
 #include "Common/PerformanceCounter.h"
 #include "Common/SlidingPointer.h"
 

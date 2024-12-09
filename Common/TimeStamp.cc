@@ -32,7 +32,7 @@ TimeStamp TimeStamp::now(unsigned clockSpeed)
     throw SystemCallException("gettimeofday", errno);
 
   double time = tv.tv_sec + tv.tv_usec * 1e-6;
-  return TimeStamp(time * clockSpeed / 4, clockSpeed);
+  return TimeStamp(time * clockSpeed / 1024, clockSpeed);
 }
 
 
@@ -47,5 +47,5 @@ void TimeStamp::wait() const
 
 std::ostream &operator << (std::ostream &os, const TimeStamp &ts)
 {
-  return os << ts.time; 
+  return os << ts.time;
 }

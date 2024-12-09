@@ -2,12 +2,11 @@
 #define CORRELATOR_PIPELINE
 
 #include "Common/PerformanceCounter.h"
-#include "Common/FilterBank.h"
 #include "Correlator/DeviceInstance.h"
 #include "Correlator/Parset.h"
 
 #if defined MEASURE_POWER
-#include "PowerSensor.h"
+#include "Common/PowerSensor.h"
 #endif
 
 #include <string>
@@ -19,7 +18,6 @@ class CorrelatorPipeline
 			CorrelatorPipeline(const CorrelatorParset &);
 
     const CorrelatorParset &ps;
-    FilterBank		filterBank;
 
     std::vector<std::unique_ptr<DeviceInstance>> deviceInstances;
 
@@ -27,7 +25,7 @@ class CorrelatorPipeline
     PerformanceCounter	samplesCounter, visibilitiesCounter;
 
 #if defined MEASURE_POWER
-    PowerSensor::State	startState, stopState;
+    PowerSensor3::State startState, stopState;
 #endif
 
   private:

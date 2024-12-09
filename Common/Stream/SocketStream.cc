@@ -170,7 +170,7 @@ SocketStream::~SocketStream() noexcept(false)
 {
   //ScopedDelayCancellation dc; // close() can throw as it is a cancellation point
 
-  if (listen_sk >= 0 && close(listen_sk) < 0 && !std::uncaught_exception())
+  if (listen_sk >= 0 && close(listen_sk) < 0 && !std::uncaught_exceptions())
     throw SystemCallException("close listen_sk", errno);
 }
 
@@ -209,7 +209,7 @@ void SocketStream::accept(time_t deadline)
       if (nfskey != "") {
         //ScopedDelayCancellation dc; // unlink is a cancellation point
 
-        bool allowException = !std::uncaught_exception();
+        bool allowException = !std::uncaught_exceptions();
 
 	try {
 	  deletekey(nfskey);

@@ -1,7 +1,7 @@
 #if !defined CUDA_SUPPORT_H
 #define CUDA_SUPPORT_H
 
-#include </var/scratch/jsteinbe/tensor-core-correlator/build/_deps/cudawrappers-src/include/cudawrappers/cu.hpp>
+#include <cudawrappers/cu.hpp>
 
 #include <boost/multi_array.hpp>
 

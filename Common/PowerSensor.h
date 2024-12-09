@@ -4,9 +4,9 @@
 #include "Common/Config.h"
 
 #if defined MEASURE_POWER
-#include <PowerSensor.h>
+#include <PowerSensor.hpp>
 
-extern PowerSensor::PowerSensor powerSensor;
+extern PowerSensor3::PowerSensor powerSensor;
 
 #endif
 #endif

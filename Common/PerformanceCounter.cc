@@ -12,12 +12,12 @@ unsigned PerformanceCounter::nrCounters;
 
 PerformanceCounter::PerformanceCounter(const std::string &name, bool profiling)
 :
-#if defined MEASURE_POWER
-  totalJoules(0),
-#endif
   totalNrOperations(0),
   totalNrBytesRead(0),
   totalNrBytesWritten(0),
+#if defined MEASURE_POWER
+  totalJoules(0),
+#endif
   totalTime(0),
   nrTimes(0),
   name(name),
@@ -57,55 +57,19 @@ PerformanceCounter::~PerformanceCounter() noexcept(false)
 }
 
 
-#if defined MEASURE_POWER
-
-struct PowerDescriptor
-{
-  PowerSensor::State startState, stopState;
-  PerformanceCounter *counter;
-};
-
-
-void PerformanceCounter::startPowerMeasurement(cl_event ev, cl_int /*status*/, void *arg)
-{
-  static_cast<PowerDescriptor *>(arg)->startState = powerSensor.read();
-}
-
-
-void PerformanceCounter::stopPowerMeasurement(cl_event ev, cl_int /*status*/, void *arg)
-{
-  PowerDescriptor *descriptor = static_cast<PowerDescriptor *>(arg);
-  descriptor->stopState = powerSensor.read();
-
-#pragma omp atomic
-  descriptor->counter->totalJoules += PowerSensor::Joules(descriptor->startState, descriptor->stopState);
-
-  const char *name = descriptor->counter->name.c_str();
-  powerSensor.mark(descriptor->startState, /* descriptor->stopState, */ name, descriptor->counter->counterNumber);
-
-  delete descriptor;
-}
-
-#endif
-
-
 PerformanceCounter::Measurement::Measurement(PerformanceCounter &counter, cu::Stream &stream, size_t nrOperations, size_t nrBytesRead, size_t nrBytesWritten)
 :
+  state(new PerformanceCounter::Measurement::State(counter)),
   counter(counter),
   stream(stream)
 {
-#if 1
   if (counter.profiling) {
-    stream.record(startEvent);
+    stream.record(state->startEvent);
 
 #if defined MEASURE_POWER
-#error FIXME
-    PowerDescriptor *descriptor = new PowerDescriptor;
-    descriptor->counter = this;
-
-    // AMD: kernel execution starts at "CL_SUBMITTED" and stops at "CL_RUNNING"
-    event.setCallback(CL_SUBMITTED, &PerformanceCounter::startPowerMeasurement, descriptor);
-    event.setCallback(CL_RUNNING, &PerformanceCounter::stopPowerMeasurement, descriptor);
+    stream.addCallback([] (CUstream, CUresult, void *arg) {
+      static_cast<State *>(arg)->psStartState = powerSensor.read();
+    }, state);
 #endif
 
 #pragma omp atomic
@@ -117,13 +81,31 @@ PerformanceCounter::Measurement::Measurement(PerformanceCounter &counter, cu::St
 #pragma omp atomic
     ++ counter.nrTimes;
   }
-#endif
 }
 
 
 PerformanceCounter::Measurement::~Measurement()
 {
   if (counter.profiling) {
+    stream.record(state->stopEvent);
+
+    stream.addCallback([] (CUstream, CUresult, void *arg) {
+      State *state = static_cast<State *>(arg);
+
+#pragma omp atomic
+      state->counter.totalTime += 1e-3 * state->stopEvent.elapsedTime(state->startEvent);
+
+#if defined MEASURE_POWER
+      PowerSensor3::State psStopState = powerSensor.read();
+
+#pragma omp atomic
+      state->counter.totalJoules += PowerSensor3::Joules(state->psStartState, psStopState);
+#endif
+
+      delete state;
+    }, state);
+
+#if 0
     cu::Event stopEvent, &startEvent = this->startEvent;
     double &totalTime = counter.totalTime;
 
@@ -137,5 +119,6 @@ PerformanceCounter::Measurement::~Measurement()
       //counter.totalTime += 1e-3 * stopEvent.elapsedTime(startEvent);
       totalTime += 1e-3 * stopEvent.elapsedTime(startEvent);
     }));
+#endif
   }
 }
