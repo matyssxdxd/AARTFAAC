@@ -18,6 +18,7 @@ class ISBI_Parset : public CorrelatorParset
 
     unsigned visibilitiesIntegration() const { return _visibilitiesIntegration; }
     unsigned nrRingBufferSamplesPerSubband() const { return _nrRingBufferSamplesPerSubband; }
+    std::vector<int> channelMapping() const { return _channelMapping; }
 
     virtual std::vector<std::string> compileOptions() const;
 
@@ -30,6 +31,7 @@ class ISBI_Parset : public CorrelatorParset
 
     unsigned _nrRingBufferSamplesPerSubband;
     unsigned _visibilitiesIntegration;
+    std::vector<int> _channelMapping;
 };
 
 
