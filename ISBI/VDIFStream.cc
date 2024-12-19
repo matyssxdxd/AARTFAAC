@@ -115,6 +115,7 @@ void VDIFStream::printFirstRow(std::complex<int16_t> (*frame)[1][16], size_t sam
             }
         }
 
+
         // Print the first row of the float32 array
         std::cout << "First row of the float32 array:" << std::endl;
         for (size_t j = 0; j < 16; ++j) {
@@ -194,7 +195,6 @@ void VDIFStream::print_vdif_header(VDIFHeader header) {
         std::cout << "version: " << static_cast<int>(header.version) << std::endl;
         std::cout << "station_id: " << header.station_id << std::endl;
         std::cout << "thread_id: " << header.thread_id << std::endl;
-		std::cout << "bits_per_sample: " << static_cast<int>(header.bits_per_sample) << std::endl;
         std::cout << "data_type: " << static_cast<int>(header.data_type) << std::endl;
         std::cout << "user_data1: " << header.user_data1 << std::endl;
         std::cout << "edv: " << static_cast<int>(header.edv) << std::endl;
@@ -205,13 +205,25 @@ void VDIFStream::print_vdif_header(VDIFHeader header) {
 
 
 void VDIFStream::decode(std::vector<uint32_t> &words, boost::multi_array<std::complex<int16_t>, 3> &data) {
-    for (size_t i = 0; i < samples_per_frame; i++) {
-	std::vector<std::complex<int16_t>> decoded_samples(number_of_channels);
-	decode_word(words[i], decoded_samples);
-	
-	for (size_t j = 0; j < number_of_channels; j++) {
-	    data[i][0][j] = decoded_samples[j];
-	}
+    // Calculate how many samples per word for each channel
+    const int samples_per_word = 16 / number_of_channels;
+    
+    // Process each word
+    for (size_t word_idx = 0; word_idx < words.size(); word_idx++) {
+        uint32_t word = words[word_idx];
+        
+        // Process each sample within the word
+        for (int sample_idx = 0; sample_idx < samples_per_word; sample_idx++) {
+            // For each channel
+            for (size_t channel = 0; channel < number_of_channels; channel++) {
+                // Calculate bit position for this channel's sample
+                int bit_pos = (sample_idx * number_of_channels + channel) * 2;
+                
+                // Extract 2-bit sample and decode it
+                uint32_t sample = (word >> bit_pos) & 0b11;
+                data[word_idx * samples_per_word + sample_idx][0][channel] = DECODER_LEVEL[sample];
+            }
+        }
     }
 }
 
