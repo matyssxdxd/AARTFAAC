@@ -43,7 +43,7 @@ struct Frame {
 	uint32_t number_of_threads;
 	uint32_t number_of_channels;
 	uint32_t samples_per_frame;
-	boost::multi_array<std::complex<int16_t>, 3> samples;
+	boost::multi_array<int16_t, 3> samples;
 
         Frame(uint32_t samples_per_frame, uint32_t number_of_threads, uint32_t number_of_channels)
 	    : samples_per_frame(samples_per_frame),
@@ -104,10 +104,10 @@ private:
         int number_of_frames;
 	uint32_t number_of_channels;
 //	float OPTIMAL_2BIT_HIGH = 3.316505f;
-//	float DECODER_LEVEL[4] = { -OPTIMAL_2BIT_HIGH, -1.0f, 1.0f, OPTIMAL_2BIT_HIGH };
+//	float DECODER_LEVEL[4] = { -OPTIMAL_2BIT_HIGH, -1.0f, 1.0f, OPTIMAL_2BIT_HIGH };	
 	int16_t DECODER_LEVEL[4] { -10, -3, 3, 10 };
-	void decode_word(uint32_t word, std::vector<std::complex<int16_t>> &samples);
-	void decode(std::vector<uint32_t> &words, boost::multi_array<std::complex<int16_t>, 3> &data);
+	void decode_word(uint32_t word, std::vector<int16_t> &samples);
+	void decode(std::vector<uint32_t> &words, boost::multi_array<int16_t, 3> &data);
 
 	uint32_t current_timestamp;
 	
@@ -123,7 +123,7 @@ public:
     int        get_samples_per_frame();
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t flag);
-    bool       readVDIFData(const std::string filePath, boost::multi_array<std::complex<int16_t>, 3> &frame, size_t samples_per_frame,  off_t offset);
+    bool       readVDIFData(const std::string filePath, boost::multi_array<int16_t, 3> &frame, size_t samples_per_frame,  off_t offset);
     //bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset);
 
    void print_vdif_header(VDIFHeader header_);

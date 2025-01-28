@@ -44,7 +44,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
   filterFuture(std::async([&] {
     context.setCurrent();
-
+    
     tcc::FilterArgs filterArgs;
     filterArgs.nrReceivers = ps.nrStations();
     filterArgs.nrChannels = ps.nrChannelsPerSubband();
@@ -52,7 +52,8 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     filterArgs.nrPolarizations = ps.nrPolarizations();
 
     filterArgs.input = tcc::FilterArgs::Input {
-    	.sampleFormat = tcc::FilterArgs::Format::i16
+	.sampleFormat = tcc::FilterArgs::Format::i16,
+	.isPurelyReal = true
     };
 
     filterArgs.firFilter = tcc::FilterArgs::FIR_Filter {
@@ -62,15 +63,11 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
-        .shift = true
+        .shift = false
     };
 
     filterArgs.applyDelays = false;
 
-    // filterArgs.output = tcc::FilterArgs::Output {
-    // 	.sampleFormat = tcc::FilterArgs::Format::fp16,
-    //     .scaleFactor = 1.0f;
-    // };
     return tcc::Filter(device, filterArgs);
   })),
 
