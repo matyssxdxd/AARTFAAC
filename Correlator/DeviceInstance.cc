@@ -76,16 +76,20 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     return TCC(device, ps);
   })),
 
-  transposeFuture(std::async([&] {
-    context.setCurrent();
-    nvrtc::Program program(std::string(&_binary_Correlator_Kernels_Transpose_cu_start, &_binary_Correlator_Kernels_Transpose_cu_end), "Correlator/Kernels/Transpose.cu");
-    return Module(device, program, ps);
-  })),
+// REMOVED
+//  transposeFuture(std::async([&] {
+//    context.setCurrent();
+//    nvrtc::Program program(std::string(&_binary_Correlator_Kernels_Transpose_cu_start, &_binary_Correlator_Kernels_Transpose_cu_end), "Correlator/Kernels/Transpose.cu");
+//    return Module(device, program, ps);
+//  })),
+  
   devTransposedInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerComplexSample()),
   devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
-
-  transposeModule(transposeFuture.get()),
-  transposeKernel(ps, device, transposeModule),
+  
+  // REMOVED
+  // transposeModule(transposeFuture.get()),
+  // transposeKernel(ps, device, transposeModule),
+  
   filter(filterFuture.get()),
   tcc(tccFuture.get()),
 
@@ -192,15 +196,17 @@ void DeviceInstance::doSubband(const TimeStamp &time,
   {
     std::lock_guard<std::mutex> lock(enqueueMutex);
 
-    transposeKernel.launchAsync(executeStream,
-				devTransposedInputBuffer,
-			        cu::DeviceMemory(hostInputBuffer),
-				startIndex,
-				pipeline.transposeCounter);
+// REMOVED
+//    transposeKernel.launchAsync(executeStream,
+//				devTransposedInputBuffer,
+//			        cu::DeviceMemory(hostInputBuffer),
+//				startIndex,
+//				pipeline.transposeCounter);
 
+    
     filter.launchAsync(executeStream,
-		       devCorrectedData,
-		       devTransposedInputBuffer); 
+		         devCorrectedData,
+			 cu::DeviceMemory(hostInputBuffer));
 
     cu::DeviceMemory devVisibilities(hostVisibilities);
     cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
@@ -254,18 +260,19 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
-    transposeKernel.launchAsync(executeStream,
-				devTransposedInputBuffer,
-				devInputBuffer,
-				0,
-				pipeline.transposeCounter);
+// REMOVED
+//    transposeKernel.launchAsync(executeStream,
+//				devTransposedInputBuffer,
+//				devInputBuffer,
+//				0,
+//				pipeline.transposeCounter);
 
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
 
-    filter.launchAsync(executeStream,
-		       devCorrectedData,
-		       devTransposedInputBuffer); 
+      filter.launchAsync(executeStream,
+		         devCorrectedData,
+			 devInputBuffer);
 
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
 

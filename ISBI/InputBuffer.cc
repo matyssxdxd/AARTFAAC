@@ -156,13 +156,15 @@ void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, uns
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
 	for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
-	//for (unsigned subband = 0; subband < 1; subband ++) {
-	  for (unsigned pol = 0; pol < 2; pol ++) {
+      		for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
 	      unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
-	    //unsigned mappedIndex = (int[]) { 2, 6, 10, 14, 3, 7, 11, 15, 0, 4, 8, 12, 1, 5, 9, 13 }[2 * subband + pol];
-	    //unsigned mappedIndex = (int[]) { 0, 1 }[2 * subband + pol];
-	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
+
+// CHANGED
+//	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
+
+	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
 	  }
+	
 	
 	}
 	if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;

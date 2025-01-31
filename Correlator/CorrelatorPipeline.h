@@ -20,7 +20,6 @@ class CorrelatorPipeline
     const CorrelatorParset &ps;
 
     std::vector<std::unique_ptr<DeviceInstance>> deviceInstances;
-
     PerformanceCounter	transposeCounter, filterAndCorrectCounter, postTransposeCounter, correlateCounter;
     PerformanceCounter	samplesCounter, visibilitiesCounter;
 

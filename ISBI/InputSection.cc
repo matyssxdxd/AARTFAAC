@@ -15,7 +15,10 @@ InputSection::InputSection(const ISBI_Parset &ps)
     std::vector<MultiArrayHostBuffer<char, 4>> buffers; 
 
     for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++)
-      buffers.emplace_back(std::move(boost::extents[ps.nrRingBufferSamplesPerSubband()][ps.nrStations()][ps.nrPolarizations()][ps.nrBytesPerComplexSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
+//  CHANGED
+//      buffers.emplace_back(std::move(boost::extents[ps.nrRingBufferSamplesPerSubband()][ps.nrStations()][ps.nrPolarizations()][ps.nrBytesPerComplexSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
+      
+        buffers.emplace_back(std::move(boost::extents[ps.nrStations()][ps.nrPolarizations()][ps.nrRingBufferSamplesPerSubband()][ps.nrBytesPerComplexSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
 
     return std::move(buffers);
   } ()),
@@ -54,7 +57,10 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 
   unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
   unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
-  size_t nrBytesPerTime = ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
+// CHANGED
+//  size_t nrBytesPerTime = ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
+
+  size_t nrBytesPerTime = ps.nrBytesPerComplexSample();
 
 #if 0
   for (unsigned time = startTimeIndex; time != endTimeIndex; time ++, time %= ps.nrRingBufferSamplesPerSubband())
@@ -74,15 +80,34 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 
   {
     PerformanceCounter::Measurement measurement(counter, stream, 0, 0, (endTime - earlyStartTime) * nrBytesPerTime);
-
+    size_t offset = 0;
     if (startTimeIndex < endTimeIndex) {
-      stream.memcpyHtoDAsync(devBuffer, hostRingBuffers[subband][startTimeIndex].origin(), (endTimeIndex - startTimeIndex) * nrBytesPerTime);
+      for (unsigned station = 0; station < ps.nrStations(); station++) {
+        for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
+	cu::DeviceMemory dst(devBuffer + offset);	
+	stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (endTimeIndex - startTimeIndex) * nrBytesPerTime);
+	offset += (endTimeIndex - startTimeIndex) * nrBytesPerTime;
+	}	
+      }
     } else {
-      stream.memcpyHtoDAsync(devBuffer, hostRingBuffers[subband][startTimeIndex].origin(), (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
+      for (unsigned station = 0; station < ps.nrStations(); station++) {
+        for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
+	  cu::DeviceMemory dst(devBuffer + offset);
+	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
+	  offset += (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime;
+	}
+      }    
 
       if (endTimeIndex > 0) {
-	cu::DeviceMemory dst(devBuffer + (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
-	stream.memcpyHtoDAsync(dst, hostRingBuffers[subband].origin(), endTimeIndex * nrBytesPerTime);
+	for (unsigned station = 0; station < ps.nrStations(); station++) {
+	  for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
+		  	
+		  // cu::DeviceMemory dst(devBuffer + (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
+		  cu::DeviceMemory dst(devBuffer + offset);
+		  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol].origin(), endTimeIndex * nrBytesPerTime);
+	  	  offset += endTimeIndex * nrBytesPerTime;
+	  }
+	}
       }
     }
   }

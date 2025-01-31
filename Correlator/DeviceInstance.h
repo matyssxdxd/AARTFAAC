@@ -58,12 +58,13 @@ class DeviceInstance
   protected:
     std::future<tcc::Filter>		filterFuture; // compile asynchronously
     std::future<TCC>		tccFuture; // compile asynchronously
-    std::future<Module>         transposeFuture;
+// REMOVED
+//  std::future<Module>         transposeFuture;
     cu::DeviceMemory		devTransposedInputBuffer;
     cu::DeviceMemory		devCorrectedData;
-
-    Module			transposeModule;
-    TransposeKernel		transposeKernel;
+// REMOVED
+//   Module			transposeModule;
+//   TransposeKernel		transposeKernel;
     tcc::Filter			filter;
     TCC				tcc;
 
