@@ -384,7 +384,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
   validData = getCurrentValidData(earlyStartTime, endTime);
   SparseSet<TimeStamp> flaggedData = validData.invert(earlyStartTime, endTime);
   const SparseSet<TimeStamp>::Ranges &flaggedRanges = flaggedData.getRanges();
-  size_t size = myNrStations * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
+  size_t size = myNrStations * ps.nrPolarizations() * ps.nrBytesPerRealSample();
   
   for (const SparseSet<TimeStamp>::range &it : flaggedRanges) {
     for (unsigned timeIndex = it.begin % nrRingBufferSamplesPerSubband, timeEndIndex = it.end % nrRingBufferSamplesPerSubband; timeIndex != timeEndIndex;) {

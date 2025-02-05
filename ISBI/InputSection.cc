@@ -18,7 +18,7 @@ InputSection::InputSection(const ISBI_Parset &ps)
 //  CHANGED
 //      buffers.emplace_back(std::move(boost::extents[ps.nrRingBufferSamplesPerSubband()][ps.nrStations()][ps.nrPolarizations()][ps.nrBytesPerComplexSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
       
-        buffers.emplace_back(std::move(boost::extents[ps.nrStations()][ps.nrPolarizations()][ps.nrRingBufferSamplesPerSubband()][ps.nrBytesPerComplexSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
+        buffers.emplace_back(std::move(boost::extents[ps.nrStations()][ps.nrPolarizations()][ps.nrRingBufferSamplesPerSubband()][ps.nrBytesPerRealSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
 
     return std::move(buffers);
   } ()),
@@ -60,7 +60,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 // CHANGED
 //  size_t nrBytesPerTime = ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
 
-  size_t nrBytesPerTime = ps.nrBytesPerComplexSample();
+  size_t nrBytesPerTime = ps.nrBytesPerRealSample();
 
 #if 0
   for (unsigned time = startTimeIndex; time != endTimeIndex; time ++, time %= ps.nrRingBufferSamplesPerSubband())

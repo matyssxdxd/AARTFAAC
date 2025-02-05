@@ -43,9 +43,10 @@ class Parset
     unsigned nrChannelsPerSubband() const { return _nrChannelsPerSubband; }
     unsigned nrBitsPerSample() const { return _nrBitsPerSample; }
     unsigned nrBytesPerComplexSample() const { return 2 * nrBitsPerSample() / 8; }
+    unsigned nrBytesPerRealSample() const { return nrBitsPerSample() / 8; }
     unsigned nrBeams() const { return _nrBeams; }
     unsigned nrSamplesPerChannel() const { return _nrSamplesPerChannel; }
-    unsigned nrSamplesPerSubband() const { return nrSamplesPerChannel() * nrChannelsPerSubband(); }
+    unsigned nrSamplesPerSubband() const { return 2 * nrSamplesPerChannel() * nrChannelsPerSubband(); }
     TimeStamp startTime() const { return _startTime; };
     TimeStamp stopTime() const { return _stopTime; };
     bool     correctBandPass() const { return _correctBandPass; }
