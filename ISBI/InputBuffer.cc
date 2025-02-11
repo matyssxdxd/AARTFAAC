@@ -156,16 +156,10 @@ void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, uns
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
 	for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
-      		for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
-	      unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
-
-// CHANGED
-//	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
-
+      	  for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
+	    unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
 	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
 	  }
-	
-	
 	}
 	if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
       }
@@ -384,7 +378,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
   validData = getCurrentValidData(earlyStartTime, endTime);
   SparseSet<TimeStamp> flaggedData = validData.invert(earlyStartTime, endTime);
   const SparseSet<TimeStamp>::Ranges &flaggedRanges = flaggedData.getRanges();
-  size_t size = myNrStations * ps.nrPolarizations() * ps.nrBytesPerRealSample();
+  size_t size = myNrStations * ps.nrBytesPerRealSample();
   
   for (const SparseSet<TimeStamp>::range &it : flaggedRanges) {
     for (unsigned timeIndex = it.begin % nrRingBufferSamplesPerSubband, timeEndIndex = it.end % nrRingBufferSamplesPerSubband; timeIndex != timeEndIndex;) {

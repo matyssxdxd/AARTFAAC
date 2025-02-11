@@ -205,17 +205,13 @@ void VDIFStream::print_vdif_header(VDIFHeader header) {
 
 
 void VDIFStream::decode(std::vector<uint32_t> &words, boost::multi_array<int16_t, 3> &data) {
-    // Calculate how many samples per word for each channel
     const int samples_per_word = 16 / number_of_channels;
     
-    // Process each word
     for (size_t word_idx = 0; word_idx < words.size(); word_idx++) {
         uint32_t word = words[word_idx];
-        // Process each sample within the word
         for (int sample_idx = 0; sample_idx < samples_per_word; sample_idx++) {
-            // For each channel
             for (size_t channel = 0; channel < number_of_channels; channel++) {
-                // Calculate bit position for this channel's sample
+                // Calculate bit position
                 int bit_pos = (sample_idx * number_of_channels + channel) * 2;
                 
                 // Extract 2-bit sample and decode it
