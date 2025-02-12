@@ -45,7 +45,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 {
   unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
   TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
 
   unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
   unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();

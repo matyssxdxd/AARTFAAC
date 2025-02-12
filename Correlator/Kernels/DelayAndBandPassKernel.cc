@@ -13,7 +13,7 @@ DelayAndBandPassKernel::DelayAndBandPassKernel(const Parset &ps, cl::Program &pr
   ps(ps)
 {
   //assert(ps.nrChannelsPerSubband() % 16 == 0 || ps.nrChannelsPerSubband() == 1);
-  assert(ps.nrSamplesPerChannel() % 16 == 0);
+  assert(ps.nrSamplesPerChannelAfterFilter() % 16 == 0);
 
   setArg(0, devCorrectedData);
   setArg(1, devFilteredData);
@@ -25,7 +25,7 @@ DelayAndBandPassKernel::DelayAndBandPassKernel(const Parset &ps, cl::Program &pr
   globalWorkSize = cl::NDRange(align(ps.nrStations() * ps.nrPolarizations(), 16), ps.nrChannelsPerSubband());
   localWorkSize = cl::NDRange(16, 16);
 
-  size_t nrSamples = ps.nrStations() * ps.nrChannelsPerSubband() * ps.nrSamplesPerChannel() * ps.nrPolarizations();
+  size_t nrSamples = ps.nrStations() * ps.nrChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.nrPolarizations();
   nrOperations = nrSamples * (ps.delayCompensation() ? 12 : ps.correctBandPass() ? 2 : 0);
   nrBytesRead = nrBytesWritten = nrSamples * sizeof(std::complex<float>);
 }

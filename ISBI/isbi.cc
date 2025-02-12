@@ -30,7 +30,7 @@ void printSettings(const ISBI_Parset &ps){
   std::clog << "#polarizations = " << ps.nrPolarizations() << std::endl;
   std::clog << "#intermediate channels/subband = " << ps.nrChannelsPerSubband() << std::endl;
   std::clog << "#output channels/subband = " << ps.nrOutputChannelsPerSubband() << std::endl;
-  std::clog << "#samples/channel = " << ps.nrSamplesPerChannel() << std::endl;
+  std::clog << "#samples/channel = " << ps.nrSamplesPerChannelAfterFilter() << std::endl;
   std::clog << "#bits/sample = " << ps.nrBitsPerSample() << std::endl;
   std::clog << "correlator mode = " << ps.correlationMode() << std::endl;
   std::clog << "start time = " << ps.startTime() << std::endl;

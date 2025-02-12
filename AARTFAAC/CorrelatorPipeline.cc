@@ -97,7 +97,7 @@ found:
   subbandsDone[subband] = true;
 
   if (subbandsDone.count() == ps.nrSubbands()) {
-    nextTime += ps.nrSamplesPerSubband();
+    nextTime += ps.nrSamplesPerSubbandBeforeFilter();
     subbandsDone.reset();
   }
 
@@ -114,7 +114,7 @@ void AARTFAAC_CorrelatorPipeline::logProgress(const TimeStamp &time) const
     std::clog << "time: " << time << ", ";
 
     if (ps.realTime())
-      std::clog << "late: " << (double) TimeStamp::now(ps.clockSpeed()) - (double) time - ps.nrSamplesPerSubband() / ps.subbandBandwidth() << "s, ";
+      std::clog << "late: " << (double) TimeStamp::now(ps.clockSpeed()) - (double) time - ps.nrSamplesPerSubbandBeforeFilter() / ps.subbandBandwidth() << "s, ";
 
     std::clog << "exec: " << omp_get_wtime() - lastTime << std::endl;
   }

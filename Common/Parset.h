@@ -40,13 +40,15 @@ class Parset
     const std::vector<double> &subbandFrequencies() const { return _subbandFrequencies; }
     double   subbandBandwidth() const { return _subbandBandwidth; }
     double   channelBandwidth() const { return subbandBandwidth() / nrChannelsPerSubband(); }
-    unsigned nrChannelsPerSubband() const { return 2 * _nrChannelsPerSubband; }
+    unsigned nrChannelsPerSubband() const { return _nrChannelsPerSubband; } 
     unsigned nrBitsPerSample() const { return _nrBitsPerSample; }
     unsigned nrBytesPerComplexSample() const { return 2 * nrBitsPerSample() / 8; }
     unsigned nrBytesPerRealSample() const { return nrBitsPerSample() / 8; }
     unsigned nrBeams() const { return _nrBeams; }
-    unsigned nrSamplesPerChannel() const { return 2 * _nrSamplesPerChannel; }
-    unsigned nrSamplesPerSubband() const { return nrSamplesPerChannel() * nrChannelsPerSubband(); }
+    unsigned nrSamplesPerChannelAfterFilter() const { return _nrSamplesPerChannel; }
+    unsigned nrSamplesPerChannelBeforeFilter() const { return 2 * _nrSamplesPerChannel; }
+    unsigned nrSamplesPerSubbandAfterFilter() const { return nrSamplesPerChannelAfterFilter() * nrChannelsPerSubband(); }
+    unsigned nrSamplesPerSubbandBeforeFilter() const { return nrSamplesPerChannelBeforeFilter() * nrChannelsPerSubband(); }
     TimeStamp startTime() const { return _startTime; };
     TimeStamp stopTime() const { return _stopTime; };
     bool     correctBandPass() const { return _correctBandPass; }

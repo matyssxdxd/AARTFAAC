@@ -100,5 +100,5 @@ void OutputBuffer::putVisibilitiesBuffer(std::unique_ptr<Visibilities> visibilit
   if (visibilities != nullptr) // visibilities == nullptr ==> skipped block
     pendingQueue.append(visibilities);
 
-  currentTime.advanceTo(time + ps.nrSamplesPerSubband());
+  currentTime.advanceTo(time + ps.nrSamplesPerSubbandBeforeFilter());
 }

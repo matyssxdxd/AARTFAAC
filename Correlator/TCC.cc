@@ -7,7 +7,7 @@ TCC::TCC(const cu::Device &device, const CorrelatorParset &ps)
       ps.nrBitsPerSample(),
       ps.nrStations(),
       ps.nrOutputChannelsPerSubband(),
-      ps.nrSamplesPerChannel() * ps.channelIntegrationFactor(),
+      ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor(),
       ps.nrPolarizations(),
       64,
       "typedef float2 Visibilities[" + std::to_string(ps.nrBaselines()) + "][" + std::to_string(ps.nrOutputChannelsPerSubband()) + "][" + std::to_string(ps.nrPolarizations()) + "][" + std::to_string(ps.nrPolarizations()) + "];"

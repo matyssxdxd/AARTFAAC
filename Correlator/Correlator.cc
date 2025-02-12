@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     //CorrelatorPipeline pipeline(ps).doWork();
     CorrelatorPipeline pipeline(ps);
 
-    MultiArrayHostBuffer<char, 4> hostInputBuffer(boost::extents[ps.nrStations()][ps.nrPolarizations()][(ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubband()][ps.nrBytesPerRealSample()]);
+    MultiArrayHostBuffer<char, 4> hostInputBuffer(boost::extents[ps.nrStations()][ps.nrPolarizations()][(ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband()][ps.nrBytesPerRealSample()]);
     MultiArrayHostBuffer<float, 3> hostDelaysAtBegin(boost::extents[ps.nrBeams()][ps.nrStations()][ps.nrPolarizations()]);
     MultiArrayHostBuffer<float, 3> hostDelaysAfterEnd(boost::extents[ps.nrBeams()][ps.nrStations()][ps.nrPolarizations()]);
     //MultiArrayHostBuffer<float, 2> hostPhaseOffsets(boost::extents[ps.nrBeams()][ps.nrPolarizations()]);
@@ -54,7 +54,7 @@ int main(int argc, char **argv)
       pipeline.startState = powerSensor.read();
 #endif
 
-      for (TimeStamp currentTime = ps.startTime(); currentTime < ps.stopTime(); currentTime += ps.nrSamplesPerSubband()) {
+      for (TimeStamp currentTime = ps.startTime(); currentTime < ps.stopTime(); currentTime += ps.nrSamplesPerSubbandBeforeFilter()) {
 #pragma omp single nowait
 #pragma omp critical (cout)
 	std::cout << "time = " << currentTime << ", late = " << (double) (TimeStamp::now(ps.clockSpeed()) - currentTime) / ps.subbandBandwidth() << "s, exec = " << omp_get_wtime() - lastTime << std::endl;

@@ -142,7 +142,7 @@ void CorrelatorWorkQueue::doWork()
 {
 #if !defined CL_DEVICE_TOPOLOGY_AMD
 #pragma omp for schedule(dynamic), collapse(2), ordered // nowait
-  for (TimeStamp time = ps.startTime(); time < ps.stopTime(); time += ps.nrSamplesPerSubband())
+  for (TimeStamp time = ps.startTime(); time < ps.stopTime(); time += ps.nrSamplesPerSubbandBeforeFilter())
     for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++)
       doSubband(time, subband);
 #else
@@ -157,7 +157,7 @@ void CorrelatorWorkQueue::doWork()
 
 bool CorrelatorWorkQueue::inTime(const TimeStamp &time)
 {
-  return !ps.realTime() || (int64_t) TimeStamp::now(ps.clockSpeed()) - (int64_t) time < ps.nrRingBufferSamplesPerSubband() - ps.nrSamplesPerSubband();
+  return !ps.realTime() || (int64_t) TimeStamp::now(ps.clockSpeed()) - (int64_t) time < ps.nrRingBufferSamplesPerSubband() - ps.nrSamplesPerSubbandBeforeFilter();
 }
 
 
@@ -186,7 +186,7 @@ void CorrelatorWorkQueue::doSubband(const TimeStamp &time, unsigned subband)
     deviceInstance.doSubband(time, subband, enqueueCopyInputBuffer, pipeline.inputSection.hostRingBuffers[subband], hostDelays, hostDelays, visibilities->hostVisibilities, startIndex);
 
     visibilities->startTime = time;
-    visibilities->endTime = time + ps.nrSamplesPerSubband();
+    visibilities->endTime = time + ps.nrSamplesPerSubbandBeforeFilter();
     computeWeights(validData, visibilities.get());
     pipeline.outputSection.putVisibilitiesBuffer(std::move(visibilities), time, subband);
   } else {

@@ -56,7 +56,7 @@ void Visibilities::write(Stream *stream)
   header.correlationMode	 = ps.correlationMode();
   header.startTime		 = startTime;
   header.endTime		 = endTime;
-  header.nrSamplesPerIntegration = ps.nrSamplesPerChannel() * ps.channelIntegrationFactor() * ps.visibilitiesIntegration();
+  header.nrSamplesPerIntegration = ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() * ps.visibilitiesIntegration();
   header.nrChannels		 = ps.nrOutputChannelsPerSubband();
   header.firstChannelFrequency	 = ps.subbandFrequencies().size() > subband ? ps.subbandFrequencies()[subband] - .5 * ps.subbandBandwidth() + .5 * ps.channelBandwidth() /* channel 0 is skipped */ + .5 * ps.outputChannelBandwidth() : 0;
   header.channelBandwidth	 = ps.outputChannelBandwidth();

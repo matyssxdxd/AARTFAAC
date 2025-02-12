@@ -33,8 +33,8 @@ CorrelateSquareKernel::CorrelateSquareKernel(const CorrelatorParset &ps, cl::Com
   globalWorkSize = cl::NDRange(16 * 16, nrSquares, ps.nrOutputChannelsPerSubband());
   localWorkSize = cl::NDRange(16 * 16, 1, 1);
 
-  nrOperations = (size_t) (nrStationsPerSquare * nrStationsPerSquare) * nrSquares * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannel() * 8 * ps.nrVisibilityPolarizations();
-  nrBytesRead = (size_t) (nrStationsPerSquare + nrStationsPerSquare) * nrSquares * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannel() * ps.nrPolarizations() * sizeof(std::complex<float>);
+  nrOperations = (size_t) (nrStationsPerSquare * nrStationsPerSquare) * nrSquares * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannelAfterFilter() * 8 * ps.nrVisibilityPolarizations();
+  nrBytesRead = (size_t) (nrStationsPerSquare + nrStationsPerSquare) * nrSquares * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannelAfterFilter() * ps.nrPolarizations() * sizeof(std::complex<float>);
   nrBytesWritten = (size_t) (nrStationsPerSquare * nrStationsPerSquare) * nrSquares * ps.nrOutputChannelsPerSubband() * ps.nrVisibilityPolarizations() * sizeof(std::complex<float>);
 }
 
@@ -59,8 +59,8 @@ CorrelateRectangleKernel::CorrelateRectangleKernel(const CorrelatorParset &ps, c
   globalWorkSize = cl::NDRange(nrThreads, nrRectangles, ps.nrOutputChannelsPerSubband());
   localWorkSize = cl::NDRange(nrThreads, 1, 1);
 
-  nrOperations = (size_t) (32 * (ps.nrStations() % 32)) * nrRectangles * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannel() * 8 * ps.nrVisibilityPolarizations();
-  nrBytesRead = (size_t) (32 + ps.nrStations() % 32) * nrRectangles * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannel() * ps.nrPolarizations() * sizeof(std::complex<float>);
+  nrOperations = (size_t) (32 * (ps.nrStations() % 32)) * nrRectangles * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannelAfterFilter() * 8 * ps.nrVisibilityPolarizations();
+  nrBytesRead = (size_t) (32 + ps.nrStations() % 32) * nrRectangles * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannelAfterFilter() * ps.nrPolarizations() * sizeof(std::complex<float>);
   nrBytesWritten = (size_t) (32 * (ps.nrStations() % 32)) * nrRectangles * ps.nrOutputChannelsPerSubband() * ps.nrVisibilityPolarizations() * sizeof(std::complex<float>);
 }
 
@@ -98,7 +98,7 @@ CorrelateTriangleKernel::CorrelateTriangleKernel(const CorrelatorParset &ps, cl:
   unsigned loadForFullBlocks = 32 * 32 * nrFullBlocks;
   unsigned loadForPartialBlocks = (ps.nrStations() % 32) * (ps.nrStations() % 32);
 
-  nrOperations = (size_t) (loadForFullBlocks + loadForPartialBlocks) * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannel() * 4 * ps.nrVisibilityPolarizations();
-  nrBytesRead = (size_t) ps.nrStations() * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannel() * ps.nrPolarizations() * sizeof(std::complex<float>);
+  nrOperations = (size_t) (loadForFullBlocks + loadForPartialBlocks) * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannelAfterFilter() * 4 * ps.nrVisibilityPolarizations();
+  nrBytesRead = (size_t) ps.nrStations() * ps.nrOutputChannelsPerSubband() * ps.channelIntegrationFactor() * ps.nrSamplesPerChannelAfterFilter() * ps.nrPolarizations() * sizeof(std::complex<float>);
   nrBytesWritten = (size_t) (loadForFullBlocks + loadForPartialBlocks) * ps.nrOutputChannelsPerSubband() * ps.nrVisibilityPolarizations() * sizeof(std::complex<float>) / 2;
 }

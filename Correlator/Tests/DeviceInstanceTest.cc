@@ -19,7 +19,7 @@ static void setTestPattern(const CorrelatorParset &ps, boost::multi_array_ref<ch
     double signalFrequency = baseFrequency + testSignalChannel * ps.subbandBandwidth() / ps.nrChannelsPerSubband();
 
     assert(ps.nrChannelsPerSubband() > 1);// FIXME: 1 ch = not implemented
-    for (unsigned time = 0; time < (NR_TAPS - 1 + ps.nrSamplesPerChannel()) * ps.nrChannelsPerSubband(); time ++)
+    for (unsigned time = 0; time < (NR_TAPS - 1 + ps.nrSamplesPerChannelBeforeFilter()) * ps.nrChannelsPerSubband(); time ++)
     {
       double phi = 2.0 * M_PI * signalFrequency * time / ps.subbandBandwidth();
 
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     CorrelatorParset	ps(argc, argv);
     CorrelatorPipeline	pipeline(ps);
 
-    MultiArrayHostBuffer<char, 4> hostInputBuffer(boost::extents[(ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubband()][ps.nrStations()][ps.nrPolarizations()][ps.nrBytesPerComplexSample()]);
+    MultiArrayHostBuffer<char, 4> hostInputBuffer(boost::extents[(ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband()][ps.nrStations()][ps.nrPolarizations()][ps.nrBytesPerComplexSample()]);
     MultiArrayHostBuffer<float, 3> hostDelaysAtBegin(boost::extents[ps.nrBeams()][ps.nrStations()][ps.nrPolarizations()]);
     MultiArrayHostBuffer<float, 3> hostDelaysAfterEnd(boost::extents[ps.nrBeams()][ps.nrStations()][ps.nrPolarizations()]);
     MultiArrayHostBuffer<std::complex<float>, 3> hostVisibilities(boost::extents[ps.nrBaselines()][ps.nrOutputChannelsPerSubband()][ps.nrVisibilityPolarizations()]);

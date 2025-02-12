@@ -183,7 +183,7 @@ void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, uns
 
 
 void InputBuffer::inputThreadBody(){
-    TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubband();
+    TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubbandBeforeFilter();
     #if defined FAKE_TIMES
       //expectedTimeStamp = ps.startTime() - nrHistorySamples - 20;
       expectedTimeStamp = TimeStamp::now(ps.clockSpeed()) - nrHistorySamples - 20;
@@ -329,7 +329,7 @@ void InputBuffer::noInputThreadBody()
     WallClockTime wallClock;
     bool lateLastTime = false;
 
-    for (TimeStamp timeStamp = ps.startTime(); timeStamp < ps.stopTime() + ps.nrSamplesPerSubband() * ps.visibilitiesIntegration() && !stop && !signalCaught; timeStamp += ps.subbandBandwidth() / 10) {
+    for (TimeStamp timeStamp = ps.startTime(); timeStamp < ps.stopTime() + ps.nrSamplesPerSubbandBeforeFilter() * ps.visibilitiesIntegration() && !stop && !signalCaught; timeStamp += ps.subbandBandwidth() / 10) {
       wallClock.waitUntil(timeStamp + ps.subbandBandwidth() / 3);
 
       std::lock_guard<std::mutex> lock(latestWriteTimeMutex);
@@ -373,7 +373,7 @@ SparseSet<TimeStamp> InputBuffer::getCurrentValidData(const TimeStamp &earlyStar
 void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subband, SparseSet<TimeStamp> &validData)
 {
   TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
 
   validData = getCurrentValidData(earlyStartTime, endTime);
   SparseSet<TimeStamp> flaggedData = validData.invert(earlyStartTime, endTime);
@@ -391,7 +391,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
   }
 
   unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
-  unsigned nrSamples        = nrHistorySamples + ps.nrSamplesPerSubband();
+  unsigned nrSamples        = nrHistorySamples + ps.nrSamplesPerSubbandBeforeFilter();
 
   if (subband == 0)
 #pragma omp critical (clog)
@@ -402,7 +402,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
   TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
 }
@@ -410,7 +410,7 @@ void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 
 void InputBuffer::endReadTransaction(const TimeStamp &startTime)
 {
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubband();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
 
   readerAndWriterSynchronization.finishedRead(endTime - nrHistorySamples - 20);
 }
