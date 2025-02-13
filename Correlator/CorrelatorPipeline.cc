@@ -13,9 +13,9 @@ CorrelatorPipeline::CorrelatorPipeline(const CorrelatorParset &ps)
 :
   ps(ps),
   deviceInstances(ps.nrGPUs()),
-  transposeCounter("transpose", ps.profiling()),
+//  transposeCounter("transpose", ps.profiling()),
   filterAndCorrectCounter("filt.correct", ps.profiling()),
-  postTransposeCounter("postTransp.", ps.profiling()),
+//  postTransposeCounter("postTransp.", ps.profiling()),
   correlateCounter("correlate", ps.profiling()),
   samplesCounter("samples", ps.profiling()),
   visibilitiesCounter("visibilities", ps.profiling())

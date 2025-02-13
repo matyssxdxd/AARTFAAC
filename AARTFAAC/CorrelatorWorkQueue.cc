@@ -186,7 +186,7 @@ void CorrelatorWorkQueue::doSubband(const TimeStamp &time, unsigned subband)
     deviceInstance.doSubband(time, subband, enqueueCopyInputBuffer, pipeline.inputSection.hostRingBuffers[subband], hostDelays, hostDelays, visibilities->hostVisibilities, startIndex);
 
     visibilities->startTime = time;
-    visibilities->endTime = time + ps.nrSamplesPerSubbandBeforeFilter();
+    visibilities->endTime = time + ps.nrSamplesPerSubbandAfterFilter();
     computeWeights(validData, visibilities.get());
     pipeline.outputSection.putVisibilitiesBuffer(std::move(visibilities), time, subband);
   } else {

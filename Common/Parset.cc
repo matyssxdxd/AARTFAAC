@@ -213,7 +213,7 @@ std::vector<std::string> Parset::compileOptions() const
     "-DNR_CHANNELS_PER_SUBBAND=" + std::to_string(nrChannelsPerSubband()),
     "-DNR_POLARIZATIONS=" + std::to_string(nrPolarizations()),
     "-DNR_RECEIVERS=" + std::to_string(nrStations()),
-    "-DNR_SAMPLES_PER_CHANNEL=" + std::to_string(nrSamplesPerChannelBeforeFilter()),
+    "-DNR_SAMPLES_PER_CHANNEL=" + std::to_string(nrSamplesPerChannelAfterFilter()),
     "-DNR_TAPS=" + std::to_string(NR_TAPS),
     "-DSUBBAND_BANDWIDTH=" + std::to_string(subbandBandwidth()),
     //"-DNR_RING_BUFFER_SAMPLES_PER_SUBBAND=" + std::to_string(nrRingBufferSamplesPerSubband()),
