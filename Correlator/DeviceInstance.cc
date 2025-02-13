@@ -48,7 +48,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     tcc::FilterArgs filterArgs;
     filterArgs.nrReceivers = ps.nrStations();
     filterArgs.nrChannels = ps.nrChannelsPerSubband();
-    filterArgs.nrSamplesPerChannel = ps.nrSamplesPerChannelBeforeFilter();
+    filterArgs.nrSamplesPerChannel = ps.nrSamplesPerChannelAfterFilter();
     filterArgs.nrPolarizations = ps.nrPolarizations();
 
     filterArgs.input = tcc::FilterArgs::Input {
@@ -270,10 +270,10 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
 
-      filter.launchAsync(executeStream,
+    filter.launchAsync(executeStream,
 		         devCorrectedData,
 			 devInputBuffer);
-
+    
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
 
 #if 0
@@ -298,6 +298,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedDataChannel0skipped, pipeline.correlateCounter);
+    
     executeStream.record(computeReady);
     deviceToHostStream.wait(computeReady);
 
