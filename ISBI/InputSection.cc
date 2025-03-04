@@ -143,7 +143,7 @@ void InputSection::fillInMissingSamples(const TimeStamp &time, unsigned subband,
 void InputSection::startReadTransaction(const TimeStamp &time)
 {
   for (std::unique_ptr<InputBuffer> &inputBuffer : inputBuffers)
-    inputBuffer->startReadTransaction(time - ps.maxDelay());
+    inputBuffer->startReadTransaction(time);
 }
 
 

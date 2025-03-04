@@ -403,7 +403,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
-  TimeStamp earlyStartTime   = startTime - nrHistorySamples;
+  TimeStamp earlyStartTime   = startTime - nrHistorySamples - ps.maxDelay();
   TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
