@@ -32,7 +32,7 @@ TimeStamp TimeStamp::now(unsigned clockSpeed)
     throw SystemCallException("gettimeofday", errno);
 
   double time = tv.tv_sec + tv.tv_usec * 1e-6;
-  return TimeStamp(time * clockSpeed / 1024, clockSpeed);
+  return TimeStamp(time * clockSpeed, clockSpeed);
 }
 
 

@@ -56,7 +56,7 @@ class DeviceInstance
     cu::Stream			executeStream;
 
   protected:
-    std::future<tcc::Filter>		filterFuture; // compile asynchronously
+    std::future<tcc::Filter>		filterFuture, filterOddFuture; // compile asynchronously
     std::future<TCC>		tccFuture; // compile asynchronously
 // REMOVED
 //  std::future<Module>         transposeFuture;
@@ -65,7 +65,7 @@ class DeviceInstance
 // REMOVED
 //   Module			transposeModule;
 //   TransposeKernel		transposeKernel;
-    tcc::Filter			filter;
+    tcc::Filter			filter, filterOdd;
     TCC				tcc;
 
     std::mutex			enqueueMutex;

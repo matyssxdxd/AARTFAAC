@@ -51,14 +51,16 @@ InputSection::~InputSection()
 
 void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory &devBuffer, PerformanceCounter &counter, const TimeStamp &startTime, unsigned subband)
 {
+  // Temporary, should be provided as an argument when running AARTFAAC
+  std::vector<int> stationDelays(ps.nrStations(), 0);
+  stationDelays[1] = 39;
+
   unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
   TimeStamp earlyStartTime   = startTime - nrHistorySamples;
   TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
 
   unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
   unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
-// CHANGED
-//  size_t nrBytesPerTime = ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample();
 
   size_t nrBytesPerTime = ps.nrBytesPerRealSample();
 
@@ -80,24 +82,36 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 
   {
     PerformanceCounter::Measurement measurement(counter, stream, 0, 0, (endTime - earlyStartTime) * nrBytesPerTime);
-    
+
     if (startTimeIndex < endTimeIndex) {
       for (unsigned station = 0; station < ps.nrStations(); station++) {
+	// Added this to calculate the startTime for each station
+        TimeStamp stationStartTime = earlyStartTime + stationDelays[station];
+	unsigned stationStartTimeIndex = stationStartTime % ps.nrRingBufferSamplesPerSubband();
+
         for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
 	  cu::DeviceMemory dst(devBuffer + (station * ps.nrPolarizations() + pol) * (endTimeIndex - startTimeIndex) * nrBytesPerTime);	
-	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (endTimeIndex - startTimeIndex) * nrBytesPerTime);
+	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][stationStartTimeIndex].origin(), (endTimeIndex - stationStartTimeIndex) * nrBytesPerTime);
 	}	
       }
     } else {
       for (unsigned station = 0; station < ps.nrStations(); station++) {
+	// Added this to calculate the startTime for each station
+	TimeStamp stationStartTime = earlyStartTime + stationDelays[station];
+	unsigned stationStartTimeIndex = stationStartTime % ps.nrRingBufferSamplesPerSubband();
+	
         for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
 	  cu::DeviceMemory dst(devBuffer + (station * ps.nrPolarizations() + pol) * (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
-	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
+	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][stationStartTimeIndex].origin(), (ps.nrRingBufferSamplesPerSubband() - stationStartTimeIndex) * nrBytesPerTime);
 	}
       }    
 
       if (endTimeIndex > 0) {
 	for (unsigned station = 0; station < ps.nrStations(); station++) {
+          // Added this to calculate the startTime for each station
+	  TimeStamp stationStartTime = earlyStartTime + stationDelays[station];
+	  unsigned stationStartTimeIndex = stationStartTime % ps.nrRingBufferSamplesPerSubband();
+
 	  for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
 		  cu::DeviceMemory dst(devBuffer + (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime + (station * ps.nrPolarizations() + pol) * endTimeIndex * nrBytesPerTime);
 		  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol].origin(), endTimeIndex * nrBytesPerTime);
@@ -129,7 +143,7 @@ void InputSection::fillInMissingSamples(const TimeStamp &time, unsigned subband,
 void InputSection::startReadTransaction(const TimeStamp &time)
 {
   for (std::unique_ptr<InputBuffer> &inputBuffer : inputBuffers)
-    inputBuffer->startReadTransaction(time);
+    inputBuffer->startReadTransaction(time - ps.maxDelay());
 }
 
 

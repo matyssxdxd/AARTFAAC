@@ -42,9 +42,38 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
   context(CU_CTX_SCHED_BLOCKING_SYNC, device),
   //integratedMemory(device.getAttribute(CU_DEVICE_ATTRIBUTE_INTEGRATED)),
 
+  filterOddFuture(std::async([&] {
+    context.setCurrent();
+
+    tcc::FilterArgs filterOddArgs;
+    filterOddArgs.nrReceivers = ps.nrStations();
+    filterOddArgs.nrChannels = ps.nrChannelsPerSubband();
+    filterOddArgs.nrSamplesPerChannel = ps.nrSamplesPerChannelAfterFilter();
+    filterOddArgs.nrPolarizations = ps.nrPolarizations();
+
+    filterOddArgs.input = tcc::FilterArgs::Input {
+      .sampleFormat = tcc::FilterArgs::Format::i16,
+      .isPurelyReal = true
+    };
+
+    filterOddArgs.firFilter = tcc::FilterArgs::FIR_Filter {
+      .nrTaps = 16,
+      .sampleFormat = tcc::FilterArgs::Format::fp32
+    };
+
+    filterOddArgs.fft = tcc::FilterArgs::FFT {
+      .sampleFormat = tcc::FilterArgs::Format::fp32,
+      .shift = true
+    };
+
+    filterOddArgs.applyDelays = false;
+
+    return tcc::Filter(device, filterOddArgs);
+  })),
+
   filterFuture(std::async([&] {
     context.setCurrent();
-    
+     
     tcc::FilterArgs filterArgs;
     filterArgs.nrReceivers = ps.nrStations();
     filterArgs.nrChannels = ps.nrChannelsPerSubband();
@@ -63,7 +92,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
-        .shift = false
+        .shift = false 
     };
 
     filterArgs.applyDelays = false;
@@ -90,6 +119,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
   // transposeModule(transposeFuture.get()),
   // transposeKernel(ps, device, transposeModule),
   
+  filterOdd(filterOddFuture.get()),
   filter(filterFuture.get()),
   tcc(tccFuture.get()),
 
@@ -270,10 +300,16 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
 
-    filter.launchAsync(executeStream,
+    if (((subband + 1) % 2) != 0) {
+      filterOdd.launchAsync(executeStream,
+		            devCorrectedData,
+			    devInputBuffer);
+    } else {
+      filter.launchAsync(executeStream,
 		         devCorrectedData,
 			 devInputBuffer);
-    
+    }
+
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
 
 #if 0
