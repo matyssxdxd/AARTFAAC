@@ -51,12 +51,13 @@ InputSection::~InputSection()
 
 void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory &devBuffer, PerformanceCounter &counter, const TimeStamp &startTime, unsigned subband)
 {
-  // Temporary, should be provided as an argument when running AARTFAAC
-  std::vector<unsigned> stationDelays(ps.nrStations(), 0);
-  stationDelays[1] = 39;
-
+  uint64_t timeOffset = startTime - ps.startTime();
+  uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
+  double proportion = static_cast<double>(timeOffset) / totalTimeRange;
+  int delayTimeIndex = std::min(static_cast<int>(proportion * ps.trueDelays().size()), static_cast<int>(ps.trueDelays().size() - 1));
+  
   for (unsigned station = 0; station < ps.nrStations(); station++) {
-    unsigned delay = stationDelays[station];
+    unsigned delay = station == 1 ? ps.trueDelays()[delayTimeIndex] : 0;
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
     TimeStamp earlyStartTime   = startTime - nrHistorySamples + delay;
     TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();

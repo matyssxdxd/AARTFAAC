@@ -55,6 +55,10 @@ int main(int argc, char **argv){
     
     printArgv(argc, argv);
     ISBI_Parset ps(argc, argv);
+    for (unsigned i = 0; i < ps.trueDelays().size(); ++i) {
+      std::cout << ps.trueDelays()[i] << " ";
+    }
+    std::cout << "\n";
     printSettings(ps);
    
    ISBI_CorrelatorPipeline correlatorPipeline (ps);

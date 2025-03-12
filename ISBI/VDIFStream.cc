@@ -64,6 +64,7 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
    file.read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader)); 
 
     if (file.peek() == EOF) {
+        std::cout << number_of_frames << std::endl;
 	throw EndOfStreamException("readVDIFHeader");
     }	
 
@@ -91,6 +92,7 @@ bool VDIFStream::readVDIFData(const std::string filePath, boost::multi_array<int
     //size_t dataSize = samples_per_frame * 1 * 2 * sizeof(std::complex<int16_t>);
 
     if (file.peek() == EOF) {
+        std::cout << number_of_frames << std::endl;
 	throw EndOfStreamException("readVDIFData");
     }
    
@@ -131,13 +133,19 @@ void VDIFStream::printFirstRow(std::complex<int16_t> (*frame)[1][16], size_t sam
 
 
 void VDIFStream::read(Frame &frame){
-    readVDIFHeader(get_input_file(), frame.header, (sizeof(VDIFHeader)+ data_frame_size) * number_of_frames);
-    number_of_headers += 1;
+    off_t offset = (sizeof(VDIFHeader) + data_frame_size) * number_of_frames;
+    if (!readVDIFHeader(get_input_file(), frame.header, offset)) {
+      std::cout << "readVDIFHeader\n";
+      return;
+    }
 
+    if (!readVDIFData(get_input_file(), frame.samples,  samples_per_frame, offset + sizeof(VDIFHeader))) {
+      std::cout << "readVDIFData\n";
+      return;
+    }
 
-    readVDIFData(get_input_file(), frame.samples,  samples_per_frame, sizeof(VDIFHeader) * (number_of_headers) + data_frame_size * number_of_frames);
     number_of_frames += 1;
-
+    number_of_headers += 1;
     current_timestamp = current_header.sec_from_epoch;
 }
 

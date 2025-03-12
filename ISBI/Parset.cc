@@ -1,6 +1,7 @@
 #include "ISBI/Parset.h"
 
 #include <boost/program_options.hpp>
+#include <fstream>
 
 
 #if 0
@@ -28,6 +29,8 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
 {
   using namespace boost::program_options;
 
+  std::string delayPath;
+
   options_description allowed_options;
 
   allowed_options.add_options()
@@ -40,7 +43,9 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
     ("nrRingBufferSamplesPerSubband,T", value<unsigned>(&_nrRingBufferSamplesPerSubband))
     ("visibilitiesIntegration,I", value<unsigned>(&_visibilitiesIntegration))
     ("channelMapping,M", value<std::vector<int>>(&_channelMapping)->multitoken())
+    ("delayPath,K", value<std::string>()->notifier([&delayPath] (const std::string &arg) { delayPath = arg; } ))
   ;
+
 
   variables_map vm;
   parsed_options parsed = command_line_parser(toPassFurther).options(allowed_options).allow_unregistered().run();
@@ -48,6 +53,17 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
   store(parsed, vm);
   notify(vm);
 
+  std::ifstream delayFile(delayPath, std::ios::binary);
+
+  uint32_t delayLength;
+  delayFile.read(reinterpret_cast<char*>(&delayLength), sizeof(uint32_t));
+  
+  _trueDelays = std::vector<int>(delayLength, 0);
+  _fracDelays = std::vector<float>(delayLength, 0);
+
+  delayFile.read(reinterpret_cast<char*>(_trueDelays.data()), delayLength * sizeof(int));
+  delayFile.read(reinterpret_cast<char*>(_fracDelays.data()), delayLength * sizeof(float));
+  
   if (toPassFurther.size() > 0)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');
 
