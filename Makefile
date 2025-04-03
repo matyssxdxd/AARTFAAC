@@ -24,7 +24,7 @@ FFTW_INCLUDE ?=		$(FFTW_ROOT)/include
 FFTW_LIB ?=		$(FFTW_ROOT)/lib #64
 
 FILTER_INCLUDE=		$(FILTER_ROOT)
-FILTER_LIB=		$(FILTER_ROOT)/build-x86_64/libfilter
+FILTER_LIB=		$(FILTER_ROOT)/build/libfilter
 
 TCC_INCLUDE=		$(TCC_ROOT)
 TCC_LIB=		$(TCC_ROOT)/build/libtcc
@@ -176,7 +176,7 @@ LIBRARIES+=		-L${FFTW_LIB} -lfftw3f
 LIBRARIES+=		-L${FILTER_LIB} -Wl,-rpath=$(FILTER_LIB) -lfilter
 LIBRARIES+=		-L${TCC_LIB} -Wl,-rpath=$(TCC_LIB) -ltcc
 LIBRARIES+=		-L${NVRTC_LIB} -Wl,-rpath=$(NVRTC_LIB) -lnvrtc
-LIBRARIES+=		-L/var/software/spack-v0.21.0/opt/spack/linux-rocky8-zen2/gcc-12.2.0/cuda-12.2.1-2sulvcllijdmnvye645fx7po6lwf6miv/targets/x86_64-linux/lib/stubs -Wl,-rpath=$/var/software/spack-v0.21.0/opt/spack/linux-rocky8-zen2/gcc-12.2.0/cuda-12.2.1-2sulvcllijdmnvye645fx7po6lwf6miv/targets/x86_64-linux/lib/stubs -lcuda
+LIBRARIES+=             -L/var/software/spack-builtin/20250403/opt/spack/linux-rocky8-zen2/gcc-12.2.0/cuda-12.6.2-v5h46v5wx6zglkfx3zrq2oq6tk73bnbx/targets/x86_64-linux/lib/stubs -Wl,-rpath=/var/software/spack-builtin/20250403/opt/spack/linux-rocky8-zen2/gcc-12.2.0/cuda-12.6.2-v5h46v5wx6zglkfx3zrq2oq6tk73bnbx/targets/x86_64-linux/lib/stubs -lcuda
 LIBRARIES+=		-lnuma
 
 ifneq ("$(POWER_SENSOR3_LIB)", "")

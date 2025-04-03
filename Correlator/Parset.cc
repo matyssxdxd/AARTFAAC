@@ -2,6 +2,7 @@
 
 #include <boost/program_options.hpp>
 
+#include <fstream>
 
 CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
 :
@@ -9,11 +10,14 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
 {
   using namespace boost::program_options;
 
+  std::string delayPath;
+
   options_description allowed_options;
 
   allowed_options.add_options()
     ("nrOutputChannelsPerSubband,C", value<unsigned>(&_nrOutputChannelsPerSubband)->default_value(0))
     ("correlationMode,m", value<unsigned>(&_correlationMode)->default_value(0xF))
+    ("delayPath,K", value<std::string>()->notifier([&delayPath] (const std::string &arg) { delayPath = arg; } ))
   ;
 
   variables_map vm;
@@ -21,6 +25,27 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   toPassFurther = collect_unrecognized(parsed.options, include_positional);
   store(parsed, vm);
   notify(vm);
+  
+  std::ifstream delayFile(delayPath, std::ios::binary);
+ 
+  uint32_t num_rows, num_cols;
+  delayFile.read(reinterpret_cast<char*>(&num_rows), sizeof(uint32_t));
+  delayFile.read(reinterpret_cast<char*>(&num_cols), sizeof(uint32_t));
+ 
+  _trueDelays = std::vector<int>(num_rows * num_cols);
+  _fracDelays = std::vector<double>(num_rows * num_cols);
+ 
+  delayFile.read(reinterpret_cast<char*>(_trueDelays.data()), num_cols * num_rows * sizeof(int));
+ 
+  delayFile.read(reinterpret_cast<char*>(_fracDelays.data()), num_cols * num_rows * sizeof(double));
+ 
+ 
+  uint32_t num_frequencies;
+  delayFile.read(reinterpret_cast<char*>(&num_frequencies), sizeof(uint32_t));
+ 
+  _centerFrequencies = std::vector<double>(num_frequencies, 0);
+ 
+  delayFile.read(reinterpret_cast<char*>(_centerFrequencies.data()), num_frequencies * sizeof(double));
 
   if (throwExceptionOnUnmatchedParameter && toPassFurther.size() > 0)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');

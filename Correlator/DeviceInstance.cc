@@ -66,7 +66,10 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
       .shift = true
     };
 
-    filterOddArgs.applyDelays = false;
+    filterOddArgs.delays = tcc::FilterArgs::Delays {
+      .subbandBandwidth = 16e6,
+      .polynomialOrder = 0
+    };
 
     return tcc::Filter(device, filterOddArgs);
   })),
@@ -95,7 +98,11 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
         .shift = false 
     };
 
-    filterArgs.applyDelays = false;
+    filterArgs.delays = {
+      .subbandBandwidth = 16e6,
+      .polynomialOrder = 0
+    };
+
 
     return tcc::Filter(device, filterArgs);
   })),
@@ -300,14 +307,31 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
 
+    uint64_t timeOffset = time - ps.startTime();
+    uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
+    double proportion = static_cast<double>(timeOffset) / totalTimeRange;
+    int delayTimeIndex = std::min(static_cast<int>(proportion * ps.fracDelays().size()), static_cast<int>(ps.fracDelays().size() - 1));
+
+    float frac_delay_0 = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / ps.nrStations() + delayTimeIndex]);
+    float frac_delay_1 = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / ps.nrStations() + delayTimeIndex]);
+    float frac_delays[2] = {frac_delay_0, frac_delay_1};
+
+    cu::DeviceMemory devFracDelays(sizeof(float) * 2);
+
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, frac_delays, sizeof(frac_delays)); 
+
     if (((subband + 1) % 2) != 0) {
       filterOdd.launchAsync(executeStream,
 		            devCorrectedData,
-			    devInputBuffer);
+			    devInputBuffer,
+                            devFracDelays,
+                            ps.centerFrequencies()[subband]);
     } else {
       filter.launchAsync(executeStream,
 		         devCorrectedData,
-			 devInputBuffer);
+			 devInputBuffer,
+                         devFracDelays,
+                         ps.centerFrequencies()[subband]);
     }
 
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
