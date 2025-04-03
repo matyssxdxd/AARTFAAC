@@ -59,6 +59,16 @@ int main(int argc, char **argv){
       std::cout << ps.trueDelays()[i] << " ";
     }
     std::cout << "\n";
+
+    for (unsigned i = 0; i < ps.fracDelays().size(); ++i) {
+      std::cout << static_cast<float>(ps.fracDelays()[i]) << " ";
+    }
+    std::cout << "\n";
+
+    for (unsigned i = 0; i < ps.centerFrequencies().size(); ++i) {
+      std::cout << static_cast<float>(ps.centerFrequencies()[i]) << " ";
+    }
+    std::cout << "\n";
     printSettings(ps);
    
    ISBI_CorrelatorPipeline correlatorPipeline (ps);

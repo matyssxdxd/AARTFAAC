@@ -24,7 +24,7 @@ FFTW_INCLUDE ?=		$(FFTW_ROOT)/include
 FFTW_LIB ?=		$(FFTW_ROOT)/lib #64
 
 FILTER_INCLUDE=		$(FILTER_ROOT)
-FILTER_LIB=		$(FILTER_ROOT)/build/libfilter
+FILTER_LIB=		$(FILTER_ROOT)/build-x86_64/libfilter
 
 TCC_INCLUDE=		$(TCC_ROOT)
 TCC_LIB=		$(TCC_ROOT)/build/libtcc

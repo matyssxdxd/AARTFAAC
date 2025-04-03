@@ -67,8 +67,9 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     };
 
     filterOddArgs.delays = tcc::FilterArgs::Delays {
-      .subbandBandwidth = 16e6,
-      .polynomialOrder = 0
+      .subbandBandwidth = ps.subbandBandwidth(),
+      .polynomialOrder = 0,
+      .separatePerPolarization = false
     };
 
     return tcc::Filter(device, filterOddArgs);
@@ -99,8 +100,9 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     };
 
     filterArgs.delays = {
-      .subbandBandwidth = 16e6,
-      .polynomialOrder = 0
+      .subbandBandwidth = ps.subbandBandwidth(),
+      .polynomialOrder = 0,
+      .separatePerPolarization = false
     };
 
 
@@ -306,32 +308,36 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
-
+    
     uint64_t timeOffset = time - ps.startTime();
     uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
     double proportion = static_cast<double>(timeOffset) / totalTimeRange;
     int delayTimeIndex = std::min(static_cast<int>(proportion * ps.fracDelays().size()), static_cast<int>(ps.fracDelays().size() - 1));
 
-    float frac_delay_0 = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / ps.nrStations() + delayTimeIndex]);
-    float frac_delay_1 = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / ps.nrStations() + delayTimeIndex]);
-    float frac_delays[2] = {frac_delay_0, frac_delay_1};
+
+    float station0FracDelay = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
+    float station1FracDelay = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
+    
+    float hostFracDelays[2] = {station0FracDelay, station1FracDelay};
+
+    double subbandCenterFrequency = ps.centerFrequencies()[subband];
 
     cu::DeviceMemory devFracDelays(sizeof(float) * 2);
 
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, frac_delays, sizeof(frac_delays)); 
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2); 
 
     if (((subband + 1) % 2) != 0) {
       filterOdd.launchAsync(executeStream,
 		            devCorrectedData,
 			    devInputBuffer,
                             devFracDelays,
-                            ps.centerFrequencies()[subband]);
+                            subbandCenterFrequency);
     } else {
       filter.launchAsync(executeStream,
 		         devCorrectedData,
 			 devInputBuffer,
                          devFracDelays,
-                         ps.centerFrequencies()[subband]);
+                         subbandCenterFrequency);
     }
 
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
