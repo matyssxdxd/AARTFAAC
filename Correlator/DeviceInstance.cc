@@ -316,7 +316,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
 
     float station0FracDelay = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
-    float station1FracDelay = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
+    float station1FracDelay = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + delayTimeIndex]);
     
     float hostFracDelays[2] = {station0FracDelay, station1FracDelay};
 
