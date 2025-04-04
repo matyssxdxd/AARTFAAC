@@ -66,11 +66,11 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
       .shift = true
     };
 
-    filterOddArgs.delays = tcc::FilterArgs::Delays {
-      .subbandBandwidth = ps.subbandBandwidth(),
-      .polynomialOrder = 0,
-      .separatePerPolarization = false
-    };
+    // filterOddArgs.delays = tcc::FilterArgs::Delays {
+    //   .subbandBandwidth = ps.subbandBandwidth(),
+    //   .polynomialOrder = 0,
+    //   .separatePerPolarization = false
+    // };
 
     return tcc::Filter(device, filterOddArgs);
   })),
@@ -99,11 +99,11 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
         .shift = false 
     };
 
-    filterArgs.delays = {
-      .subbandBandwidth = ps.subbandBandwidth(),
-      .polynomialOrder = 0,
-      .separatePerPolarization = false
-    };
+    // filterArgs.delays = {
+    //   .subbandBandwidth = ps.subbandBandwidth(),
+    //   .polynomialOrder = 0,
+    //   .separatePerPolarization = false
+    // };
 
 
     return tcc::Filter(device, filterArgs);
@@ -285,6 +285,23 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
     }
 
+    // uint64_t timeOffset = time - ps.startTime();
+    // uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
+    // double proportion = static_cast<double>(timeOffset) / totalTimeRange;
+    // int delayTimeIndex = std::min(static_cast<int>(proportion * ps.fracDelays().size() / 2), static_cast<int>(ps.fracDelays().size() / 2 - 1));
+
+
+    // float station0FracDelay = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
+    // float station1FracDelay = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + delayTimeIndex]);
+    // 
+    // float hostFracDelays[2] = {station0FracDelay, station1FracDelay};
+
+    // double subbandCenterFrequency = ps.centerFrequencies()[subband];
+
+    // cu::DeviceMemory devFracDelays(sizeof(float) * 2);
+
+    // hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2); 
+
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
 
@@ -309,35 +326,18 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
     
-    uint64_t timeOffset = time - ps.startTime();
-    uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-    double proportion = static_cast<double>(timeOffset) / totalTimeRange;
-    int delayTimeIndex = std::min(static_cast<int>(proportion * ps.fracDelays().size()), static_cast<int>(ps.fracDelays().size() - 1));
-
-
-    float station0FracDelay = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
-    float station1FracDelay = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + delayTimeIndex]);
-    
-    float hostFracDelays[2] = {station0FracDelay, station1FracDelay};
-
-    double subbandCenterFrequency = ps.centerFrequencies()[subband];
-
-    cu::DeviceMemory devFracDelays(sizeof(float) * 2);
-
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2); 
-
     if (((subband + 1) % 2) != 0) {
       filterOdd.launchAsync(executeStream,
 		            devCorrectedData,
-			    devInputBuffer,
-                            devFracDelays,
-                            subbandCenterFrequency);
+			    devInputBuffer);
+                            // devFracDelays,
+                            // subbandCenterFrequency
     } else {
       filter.launchAsync(executeStream,
 		         devCorrectedData,
-			 devInputBuffer,
-                         devFracDelays,
-                         subbandCenterFrequency);
+			 devInputBuffer);
+                         // devFracDelays,
+                         // subbandCenterFrequency
     }
 
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
