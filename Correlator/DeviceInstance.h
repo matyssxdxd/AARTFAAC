@@ -94,6 +94,7 @@ class DeviceInstanceWithoutUnifiedMemory : public DeviceInstance
 
     cu::Stream			  hostToDeviceStream, deviceToHostStream;
     cu::DeviceMemory              devInputBuffer;
+    cu::DeviceMemory              devFracDelays;
     cu::DeviceMemory		  devDelaysAtBegin, devDelaysAfterEnd;
     std::vector<cu::DeviceMemory> devVisibilities;//[NR_DEV_VISIBILITIES_BUFFERS];
     unsigned			  currentVisibilityBuffer;
