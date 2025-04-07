@@ -57,7 +57,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
   int delayTimeIndex = std::min(static_cast<int>(proportion * ps.trueDelays().size() / 2), static_cast<int>(ps.trueDelays().size() / 2 - 1));
   
   for (unsigned station = 0; station < ps.nrStations(); station++) {
-    unsigned delay =  ps.trueDelays()[station * ps.trueDelays().size() / 2 + delayTimeIndex];
+    int delay =  ps.trueDelays()[station * ps.trueDelays().size() / 2 + delayTimeIndex];
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
     TimeStamp earlyStartTime   = startTime - nrHistorySamples + delay;
     TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
@@ -66,6 +66,12 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
 
     size_t nrBytesPerTime = ps.nrBytesPerRealSample();
+    
+    std::cout << "delay: " << delay << "\n";
+    std::cout << "earlyStartTime: " << earlyStartTime << "\n";
+    std::cout << "endTime: " << endTime << "\n";
+    std::cout << "startTimeIndex: " << startTimeIndex << "\n";
+    std::cout << "endTimeIndex: " << endTimeIndex << "\n";
 
 #if 0
     for (unsigned time = startTimeIndex; time != endTimeIndex; time ++, time %= ps.nrRingBufferSamplesPerSubband())
@@ -88,26 +94,31 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 
       if (startTimeIndex < endTimeIndex) {
         for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-	  cu::DeviceMemory dst(devBuffer + (station * ps.nrPolarizations() + pol) * (endTimeIndex - startTimeIndex) * nrBytesPerTime);	
-	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (endTimeIndex - startTimeIndex) * nrBytesPerTime);
+          size_t offset = (station * ps.nrPolarizations() + pol) * (endTimeIndex - startTimeIndex) * nrBytesPerTime;
+          size_t bytesToCopy = (endTimeIndex - startTimeIndex) * nrBytesPerTime;
+          std::cout << "No wrap around: " << offset << "\n";
+          std::cout << "Bytes copied: " << bytesToCopy << "\n"; 
+          cu::DeviceMemory dst(devBuffer + offset);	
+	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), bytesToCopy);
 	}	
-    } else {
+      } else {
         for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-	  cu::DeviceMemory dst(devBuffer + (station * ps.nrPolarizations() + pol) * (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
-	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);
-	}
-          
-
-      if (endTimeIndex > 0) {
-	  for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-		  cu::DeviceMemory dst(devBuffer + (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime + (station * ps.nrPolarizations() + pol) * endTimeIndex * nrBytesPerTime);
-		  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol].origin(), endTimeIndex * nrBytesPerTime);
-	  }
+          size_t offset = (station * ps.nrPolarizations() + pol) * (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime;
+          std::cout << "Wrap around 1st part: " << offset << "\n"; 
+          cu::DeviceMemory dst(devBuffer + offset);
+          stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);	
+        }
+        if (endTimeIndex > 0) {
+          for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
+            size_t offset = (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime + (station * ps.nrPolarizations() + pol) * endTimeIndex * nrBytesPerTime;
+            std::cout << "Wrap around 2nd part: " << offset << "\n"; 
+            cu::DeviceMemory dst(devBuffer + offset);
+            stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol].origin(), endTimeIndex * nrBytesPerTime);
+          }
+        }
       }
     }
   }
-  }
-
 #if 0
   char filename[1024];
   sprintf(filename, "/var/scratch/romein/out.%u", subband + 8);

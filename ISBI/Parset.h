@@ -23,7 +23,7 @@ class ISBI_Parset : public CorrelatorParset
     // std::vector<double> fracDelays() const { return _fracDelays; }
     // std::vector<double> centerFrequencies() const { return _centerFrequencies; }
 
-    const int maxDelay() const { return 50; }; 
+    const int maxDelay() const { return -50; }; 
     
     virtual std::vector<std::string> compileOptions() const;
 
