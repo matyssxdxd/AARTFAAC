@@ -68,7 +68,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
     filterOddArgs.delays = tcc::FilterArgs::Delays {
       .subbandBandwidth = ps.subbandBandwidth(),
-      .polynomialOrder = 0,
+      .polynomialOrder = 1,
       .separatePerPolarization = false
     };
 
@@ -101,7 +101,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
     filterArgs.delays = {
       .subbandBandwidth = ps.subbandBandwidth(),
-      .polynomialOrder = 0,
+      .polynomialOrder = 1,
       .separatePerPolarization = false
     };
 
@@ -182,10 +182,10 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 DeviceInstanceWithoutUnifiedMemory::DeviceInstanceWithoutUnifiedMemory(CorrelatorPipeline &pipeline, unsigned deviceNr)
 :
   DeviceInstance(pipeline, deviceNr),
-  devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerRealSample()),
+  devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerRealSample()  + 500),
   devDelaysAtBegin(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
   devDelaysAfterEnd(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
-  devFracDelays(sizeof(float) * 2),
+  devFracDelays(sizeof(float) * 2 * 2),
   currentVisibilityBuffer(0)
 {
   for (unsigned buffer = 0; buffer < NR_DEV_VISIBILITIES_BUFFERS; buffer ++)
@@ -291,15 +291,26 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     double proportion = static_cast<double>(timeOffset) / totalTimeRange;
     int delayTimeIndex = std::min(static_cast<int>(proportion * ps.fracDelays().size() / 2), static_cast<int>(ps.fracDelays().size() / 2 - 1));
 
+    int nextDelayTimeIndex = std::min(delayTimeIndex + 1, static_cast<int>(ps.fracDelays().size() / 2 - 1));
 
-    float station0FracDelay = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
-    float station1FracDelay = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + delayTimeIndex]);
-    
-    float hostFracDelays[2] = {station0FracDelay, station1FracDelay};
+    float station0_d0 = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
+    float station1_d0 = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + delayTimeIndex]);
+   
+    float station0_next = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + nextDelayTimeIndex]);
+    float station1_next = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + nextDelayTimeIndex]);
+
+    float station0_d1 = (station0_next - station0_d0) / ps.nrSamplesPerChannelAfterFilter(); 
+    float station1_d1 = (station1_next - station1_d0) / ps.nrSamplesPerChannelAfterFilter(); 
+
+
+    float hostFracDelays[2][2] = {
+      {station0_d0, station0_d1},
+      {station1_d0, station1_d1}
+    };
 
     double subbandCenterFrequency = ps.centerFrequencies()[subband];
 
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2); 
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
 
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
