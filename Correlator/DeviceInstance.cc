@@ -288,20 +288,34 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     uint64_t timeOffset = time - ps.startTime();
     uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-    double proportion = static_cast<double>(timeOffset) / totalTimeRange;
-    int delayTimeIndex = std::min(static_cast<int>(proportion * ps.fracDelays().size() / 2), static_cast<int>(ps.fracDelays().size() / 2 - 1));
 
-    int nextDelayTimeIndex = std::min(delayTimeIndex + 1, static_cast<int>(ps.fracDelays().size() / 2 - 1));
-
-    float station0_d0 = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + delayTimeIndex]);
-    float station1_d0 = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + delayTimeIndex]);
-   
-    float station0_next = static_cast<float>(ps.fracDelays()[0 * ps.fracDelays().size() / 2 + nextDelayTimeIndex]);
-    float station1_next = static_cast<float>(ps.fracDelays()[1 * ps.fracDelays().size() / 2 + nextDelayTimeIndex]);
-
-    float station0_d1 = (station0_next - station0_d0) / ps.nrSamplesPerChannelAfterFilter(); 
-    float station1_d1 = (station1_next - station1_d0) / ps.nrSamplesPerChannelAfterFilter(); 
-
+    double timeStep = totalTimeRange / (ps.fracDelays().size() / 2 - 1);
+    double exactIndex = static_cast<double>(timeOffset) / timeStep;
+    int lowerIndex = static_cast<int>(exactIndex);
+    double fraction = exactIndex - lowerIndex;
+    
+    // Interpolate d0 for current block
+    float station0_d0 = ps.fracDelays()[0 * ps.fracDelays().size() / 2 + lowerIndex] * (1 - fraction) +
+                        ps.fracDelays()[0 * ps.fracDelays().size() / 2 + lowerIndex + 1] * fraction;
+    
+    float station1_d0 = ps.fracDelays()[1 * ps.fracDelays().size() / 2 + lowerIndex] * (1 - fraction) +
+                        ps.fracDelays()[1 * ps.fracDelays().size() / 2 + lowerIndex + 1] * fraction;
+    
+    // Compute dN for next block
+    uint64_t nextBlockTimeOffset = timeOffset + ps.nrSamplesPerChannelAfterFilter();
+    double nextExactIndex = static_cast<double>(nextBlockTimeOffset) / timeStep;
+    int nextLowerIndex = static_cast<int>(nextExactIndex);
+    double nextFraction = nextExactIndex - nextLowerIndex;
+    
+    float station0_dN = ps.fracDelays()[0 * ps.fracDelays().size() / 2 + nextLowerIndex] * (1 - nextFraction) +
+                        ps.fracDelays()[0 * ps.fracDelays().size() / 2 + nextLowerIndex + 1] * nextFraction;
+    
+    float station1_dN = ps.fracDelays()[1 * ps.fracDelays().size() / 2 + nextLowerIndex] * (1 - nextFraction) +
+                        ps.fracDelays()[1 * ps.fracDelays().size() / 2 + nextLowerIndex + 1] * nextFraction;
+    
+    // Compute d1
+    float station0_d1 = (station0_dN - station0_d0) / ps.nrSamplesPerChannelAfterFilter();
+    float station1_d1 = (station1_dN - station1_d0) / ps.nrSamplesPerChannelAfterFilter();
 
     float hostFracDelays[2][2] = {
       {station0_d0, station0_d1},
