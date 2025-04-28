@@ -63,7 +63,8 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
     filterOddArgs.fft = tcc::FilterArgs::FFT {
       .sampleFormat = tcc::FilterArgs::Format::fp32,
-      .shift = true
+      .shift = false,
+      .mirror = true
     };
 
     filterOddArgs.delays = tcc::FilterArgs::Delays {
@@ -96,7 +97,8 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
-        .shift = false 
+        .shift = false,
+        .mirror = false
     };
 
     filterArgs.delays = {
