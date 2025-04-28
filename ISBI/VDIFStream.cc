@@ -78,8 +78,6 @@ bool VDIFStream::readVDIFHeader(const std::string filePath, VDIFHeader& header, 
 
 
 bool VDIFStream::readVDIFData(const std::string filePath, boost::multi_array<int16_t, 3> &frame, size_t samples_per_frame, off_t offset) {
-//bool VDIFStream::readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset {
-
     if (!file.is_open()) {
         std::cerr << "Failed to open file: " << filePath << std::endl;
         return false;
@@ -227,12 +225,6 @@ void VDIFStream::decode(std::vector<uint32_t> &words, boost::multi_array<int16_t
                 data[word_idx * samples_per_word + sample_idx][0][channel] = DECODER_LEVEL[sample];
             }
         }
-    }
-}
-
-void VDIFStream::decode_word(uint32_t word, std::vector<int16_t> &data) {
-    for (int i = 0; i < number_of_channels; i++) {
-        data[i] = DECODER_LEVEL[(word >> (i * 2)) & 0b11];
     }
 }
 

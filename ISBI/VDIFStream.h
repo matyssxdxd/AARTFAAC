@@ -88,7 +88,6 @@ struct Frame {
 
 	    TimeStamp timestamp = TimeStamp::fromDate(buffer, subbandBandwidth);
 	    return timestamp + header.dataframe_in_second * samples_per_frame;
-       	    // return epoch + static_cast<uint64_t>(header.sec_from_epoch) * subbandBandwidth + header.dataframe_in_second * samples_per_frame;
 	}
 };
 
@@ -103,10 +102,7 @@ private:
 	int number_of_headers;
         int number_of_frames;
 	uint32_t number_of_channels;
-//	float OPTIMAL_2BIT_HIGH = 3.316505f;
-//	float DECODER_LEVEL[4] = { -OPTIMAL_2BIT_HIGH, -1.0f, 1.0f, OPTIMAL_2BIT_HIGH };	
-	int16_t DECODER_LEVEL[4] { -10, -3, 3, 10 };
-	void decode_word(uint32_t word, std::vector<int16_t> &samples);
+	float DECODER_LEVEL[4] = { -3, -1, 1, 3 };	
 	void decode(std::vector<uint32_t> &words, boost::multi_array<int16_t, 3> &data);
 
 	uint32_t current_timestamp;
@@ -124,7 +120,6 @@ public:
     uint32_t   get_current_timestamp();
     bool       readVDIFHeader(const std::string filePath, VDIFHeader& header, off_t flag);
     bool       readVDIFData(const std::string filePath, boost::multi_array<int16_t, 3> &frame, size_t samples_per_frame,  off_t offset);
-    //bool       readVDIFData(const std::string filePath, std::complex<int16_t> (*frame)[1][2], size_t samples_per_frame,  off_t offset);
 
    void print_vdif_header(VDIFHeader header_);
    
