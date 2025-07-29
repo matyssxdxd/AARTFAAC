@@ -15,9 +15,6 @@ InputSection::InputSection(const ISBI_Parset &ps)
     std::vector<MultiArrayHostBuffer<char, 4>> buffers; 
 
     for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++)
-//  CHANGED
-//      buffers.emplace_back(std::move(boost::extents[ps.nrRingBufferSamplesPerSubband()][ps.nrStations()][ps.nrPolarizations()][ps.nrBytesPerComplexSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
-      
         buffers.emplace_back(std::move(boost::extents[ps.nrStations()][ps.nrPolarizations()][ps.nrRingBufferSamplesPerSubband()][ps.nrBytesPerRealSample()]), CU_MEMHOSTALLOC_WRITECOMBINED);
 
     return std::move(buffers);
@@ -98,28 +95,21 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
         for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
           size_t offset = (station * ps.nrPolarizations() + pol) * (endTimeIndex - startTimeIndex) * nrBytesPerTime;
           size_t bytesToCopy = (endTimeIndex - startTimeIndex) * nrBytesPerTime;
-#if 0
-          std::cout << "No wrap around: " << offset << "\n";
-          std::cout << "Bytes copied: " << bytesToCopy << "\n"; 
-#endif
           cu::DeviceMemory dst(devBuffer + offset);	
 	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), bytesToCopy);
 	}	
       } else {
         for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-          size_t offset = (station * ps.nrPolarizations() + pol) * (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime;
-#if 0
-          std::cout << "Wrap around 1st part: " << offset << "\n"; 
-#endif
+          size_t offset = (station * ps.nrPolarizations() + pol) * (ps.nrRingBufferSamplesPerSubband() -
+              startTimeIndex) * nrBytesPerTime;
           cu::DeviceMemory dst(devBuffer + offset);
-          stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);	
+          stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(),
+              (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);	
         }
         if (endTimeIndex > 0) {
           for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-            size_t offset = (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime + (station * ps.nrPolarizations() + pol) * endTimeIndex * nrBytesPerTime;
-#if 0
-            std::cout << "Wrap around 2nd part: " << offset << "\n"; 
-#endif
+            size_t offset = (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime + 
+              (station * ps.nrPolarizations() + pol) * endTimeIndex * nrBytesPerTime;
             cu::DeviceMemory dst(devBuffer + offset);
             stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol].origin(), endTimeIndex * nrBytesPerTime);
           }

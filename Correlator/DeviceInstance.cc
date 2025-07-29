@@ -98,7 +98,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
         .shift = false,
-        .mirror = false
+        .mirror = false 
     };
 
     filterArgs.delays = {
@@ -290,43 +290,40 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     uint64_t timeOffset = time - ps.startTime();
     uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
+    uint64_t nextBlockTimeOffset = timeOffset + ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
 
-    double timeStep = totalTimeRange / (ps.fracDelays().size() / 2 - 1);
-    double exactIndex = static_cast<double>(timeOffset) / timeStep;
-    int lowerIndex = static_cast<int>(exactIndex);
-    double fraction = exactIndex - lowerIndex;
+    size_t n = ps.fracDelays().size() / 2;
     
-    // Interpolate d0 for current block
-    float station0_d0 = ps.fracDelays()[0 * ps.fracDelays().size() / 2 + lowerIndex] * (1 - fraction) +
-                        ps.fracDelays()[0 * ps.fracDelays().size() / 2 + lowerIndex + 1] * fraction;
-    
-    float station1_d0 = ps.fracDelays()[1 * ps.fracDelays().size() / 2 + lowerIndex] * (1 - fraction) +
-                        ps.fracDelays()[1 * ps.fracDelays().size() / 2 + lowerIndex + 1] * fraction;
-    
-    // Compute dN for next block
-    uint64_t nextBlockTimeOffset = timeOffset + ps.nrSamplesPerChannelAfterFilter();
-    double nextExactIndex = static_cast<double>(nextBlockTimeOffset) / timeStep;
-    int nextLowerIndex = static_cast<int>(nextExactIndex);
-    double nextFraction = nextExactIndex - nextLowerIndex;
-    
-    float station0_dN = ps.fracDelays()[0 * ps.fracDelays().size() / 2 + nextLowerIndex] * (1 - nextFraction) +
-                        ps.fracDelays()[0 * ps.fracDelays().size() / 2 + nextLowerIndex + 1] * nextFraction;
-    
-    float station1_dN = ps.fracDelays()[1 * ps.fracDelays().size() / 2 + nextLowerIndex] * (1 - nextFraction) +
-                        ps.fracDelays()[1 * ps.fracDelays().size() / 2 + nextLowerIndex + 1] * nextFraction;
-    
-    // Compute d1
-    float station0_d1 = (station0_dN - station0_d0) / ps.nrSamplesPerChannelAfterFilter();
-    float station1_d1 = (station1_dN - station1_d0) / ps.nrSamplesPerChannelAfterFilter();
+    float hostFracDelays[2][2];
+     
+    for (unsigned antenna = 0; antenna < ps.nrStations(); antenna++) {
+      double fractionalIndex = (double)timeOffset * (n - 1) / totalTimeRange;
+      size_t indexLow = (size_t)fractionalIndex;
+      size_t indexHigh = indexLow + 1;
 
-    float hostFracDelays[2][2] = {
-      {station0_d0, station0_d1},
-      {station1_d0, station1_d1}
-    };
+      double weight = fractionalIndex - indexLow;
+      double d0 = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
+        ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
 
+      fractionalIndex = (double)nextBlockTimeOffset * (n - 1) / totalTimeRange;
+      indexLow = (size_t) fractionalIndex;
+      indexHigh = indexLow + 1;
+
+      weight = fractionalIndex - indexLow;
+      double dN = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
+        ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
+
+      hostFracDelays[antenna][0] = d0; 
+      
+      hostFracDelays[antenna][1] = (dN - hostFracDelays[antenna][0]) / ps.nrSamplesPerChannelBeforeFilter();
+    }
+
+    // std::cout << "antenna-0 d0"<< hostFracDelays[0][0] << " d1" << hostFracDelays[0][1] << std::endl;
+    // std::cout << "antenna-1 d0"<< hostFracDelays[1][0] << " d1" << hostFracDelays[1][1] << std::endl;
+    
     double subbandCenterFrequency = ps.centerFrequencies()[subband];
 
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * ps.nrStations()); 
 
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
