@@ -139,8 +139,8 @@ InputBuffer::~InputBuffer()
 }
 
 
-void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket, TimeStamp epoch) {
-  TimeStamp beginTime = packetBuffer[0].timeStamp(epoch, ps.subbandBandwidth(), 0);
+void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket) {
+  TimeStamp beginTime = packetBuffer[0].timeStamp(ps.subbandBandwidth());
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
@@ -183,118 +183,103 @@ void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, uns
 
 
 void InputBuffer::inputThreadBody(){
-    TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubbandBeforeFilter();
-    #if defined FAKE_TIMES
-      //expectedTimeStamp = ps.startTime() - nrHistorySamples - 20;
-      expectedTimeStamp = TimeStamp::now(ps.clockSpeed()) - nrHistorySamples - 20;
-      #pragma omp critical (clog)
-      std::clog<<"expectedTimeStamp " << expectedTimeStamp << std::endl;
-      
-    #endif
-   
-   std::cout << "myNrStations " << myNrStations << std::endl;
-   std::cout << "myFirstStation " << myFirstStation << std::endl;
-   VDIFStream * vdifStream = new  VDIFStream (ps.inputDescriptors()[myFirstStation]); 
-   assert(vdifStream != nullptr);  
-   TimeStamp epoch = ps.startTime() - static_cast<uint64_t>(vdifStream->get_current_timestamp()) * ps.subbandBandwidth();
-   std::cout << epoch << " epoch\n ";
-   
-   std::cout << "ps.inputDescriptors() " << std::endl;
-  
-  int data_frame_size = vdifStream->get_data_frame_size();
-  uint8_t log2_nchan = vdifStream->get_log2_nchan();
-  int samples_per_frame =  vdifStream->get_samples_per_frame();
-  int nr_channels = (1 << log2_nchan); 
- 
-  std::cout << "data_frame_size " << data_frame_size  << std::endl;
-  std::cout << "samples_per_frame " << samples_per_frame  << std::endl;
-  std::cout << "nr_channels " << nr_channels  << std::endl; 
-  
+  TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubbandBeforeFilter();
+#if defined FAKE_TIMES
+  //expectedTimeStamp = ps.startTime() - nrHistorySamples - 20;
+  expectedTimeStamp = TimeStamp::now(ps.clockSpeed()) - nrHistorySamples - 20;
+#pragma omp critical (clog)
+  std::clog<<"expectedTimeStamp " << expectedTimeStamp << std::endl;
+
+#endif
+
+  VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation]); 
+  assert(&vdifStream != nullptr);  
+
   std::vector<Frame> frames;
 
   for (unsigned i = 0; i < maxNrPacketsInBuffer; i++) {
-      frames.emplace_back(samples_per_frame, 1, nr_channels);
+    frames.emplace_back(vdifStream.samplesPerFrame(), 1, vdifStream.numberOfChannels());
   }
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
   TimeStamp timeStamp(0, 1); 
 
-  #if defined USE_RECVMMSG
-    struct iovec   iovecs[maxNrPacketsInBuffer];
-    struct mmsghdr msgvec[maxNrPacketsInBuffer];
+#if defined USE_RECVMMSG
+  struct iovec   iovecs[maxNrPacketsInBuffer];
+  struct mmsghdr msgvec[maxNrPacketsInBuffer];
 
-    for (int packet = 0; packet < maxNrPacketsInBuffer; packet ++) {
-      iovecs[packet].iov_base		  = packetBuffer[packet];
-      iovecs[packet].iov_len		  = maxPacketSize;
-      msgvec[packet].msg_hdr.msg_iov    = &iovecs[packet];
-      msgvec[packet].msg_hdr.msg_iovlen = 1;
-    }
-  #endif
+  for (int packet = 0; packet < maxNrPacketsInBuffer; packet ++) {
+    iovecs[packet].iov_base		  = packetBuffer[packet];
+    iovecs[packet].iov_len		  = maxPacketSize;
+    msgvec[packet].msg_hdr.msg_iov    = &iovecs[packet];
+    msgvec[packet].msg_hdr.msg_iovlen = 1;
+  }
+#endif
 
   do {
-   //#if defined USE_RECVMMSG  
-      try {
-	for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++)
-	  vdifStream->read(frames[nrPackets]);
+    //#if defined USE_RECVMMSG  
+    try {
+      for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++)
+        vdifStream.read(frames[nrPackets]);
+    }
+    catch (Stream::EndOfStreamException) {
+#pragma omp critical (clog)
+      std::clog <<  logMessage()  << " caught EndOfStreamException" << std::endl;
+      stop = true;
+    } 
+
+    /* catch (const SystemCallException &ex) {
+       if (ex.error != EAGAIN && ex.error != EINTR) // expect timeout; rethrow others
+       throw;
+       }*/
+
+    for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
+      timeStamp = frames[nextPacket].timeStamp(ps.subbandBandwidth()); 
+      if (timeStamp != expectedTimeStamp) {
+        if (firstPacket < nextPacket) {
+          handleConsecutivePackets(frames, firstPacket, nextPacket);
+        }
+
+        if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
+          if (!printedImpossibleTimeStampWarning) {
+            printedImpossibleTimeStampWarning = true;
+#pragma omp critical (clog)
+            std::clog << logMessage() << ": impossible timestamp " << timeStamp << std::endl;
+          }
+
+          firstPacket = nextPacket + 1;
+          timeStamp = 0;
+        } else {
+          printedImpossibleTimeStampWarning = false;
+        }
       }
-      catch (Stream::EndOfStreamException) {
-        #pragma omp critical (clog)
-	std::clog <<  logMessage()  << " caught EndOfStreamException" << std::endl;
-	stop = true;
-      } 
 
-     /* catch (const SystemCallException &ex) {
-	if (ex.error != EAGAIN && ex.error != EINTR) // expect timeout; rethrow others
-	  throw;
-      }*/
-       
-      for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
-	     timeStamp = frames[nextPacket].timeStamp(epoch, ps.subbandBandwidth(), 0); 
-	     if (timeStamp != expectedTimeStamp) {
-		     if (firstPacket < nextPacket) {
-			     handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
-		     }
-
-	     if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
-			     if (!printedImpossibleTimeStampWarning) {
-				     printedImpossibleTimeStampWarning = true;
-				     #pragma omp critical (clog)
-				     std::clog << logMessage() << ": impossible timestamp " << timeStamp << std::endl;
-			     }
-
-			     firstPacket = nextPacket + 1;
-			     timeStamp = 0;
-		     } else {
-			     printedImpossibleTimeStampWarning = false;
-		     }
-	     }
-
-	     expectedTimeStamp = timeStamp + nrTimesPerPacket;
-     }
+      expectedTimeStamp = timeStamp + nrTimesPerPacket;
+    }
 
 
-     if (firstPacket < nextPacket) {
-	    handleConsecutivePackets(frames, firstPacket, nextPacket, epoch);
-     } 
-      
-  
-  //#endif
+    if (firstPacket < nextPacket) {
+      handleConsecutivePackets(frames, firstPacket, nextPacket);
+    } 
+
+
+    //#endif
   } while (timeStamp < stopTime && !stop && !signalCaught);
 
   readerAndWriterSynchronization.noMoreWriting();
 
-  #if !defined CREATE_BACKTRACE_ON_EXCEPTION
+#if !defined CREATE_BACKTRACE_ON_EXCEPTION
   /*  } catch (std::exception &ex) {
-    readerAndWriterSynchronization.noMoreWriting();
+      readerAndWriterSynchronization.noMoreWriting();
 
-  
-  #pragma omp critical (cerr)
-    std::cerr << logMessage() << " caught std::exception: " << ex.what() << std::endl;
-  }*/
+
+#pragma omp critical (cerr)
+std::cerr << logMessage() << " caught std::exception: " << ex.what() << std::endl;
+}*/
 
 #endif
-}
+  }
 
 
 void InputBuffer::logThreadBody()

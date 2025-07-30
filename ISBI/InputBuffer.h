@@ -36,7 +36,7 @@ private:
     void inputThreadBody(), noInputThreadBody(), logThreadBody();
     std::function<std::ostream & (std::ostream &)> logMessage() const;
 
-    void handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket, TimeStamp epoch);
+    void handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket);
     SparseSet<TimeStamp> getCurrentValidData(const TimeStamp &earlyStartTime, const TimeStamp &endTime);
 
     const ISBI_Parset	&ps;

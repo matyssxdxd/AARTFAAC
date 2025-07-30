@@ -315,7 +315,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
       hostFracDelays[antenna][0] = d0; 
       
-      hostFracDelays[antenna][1] = (dN - hostFracDelays[antenna][0]) / ps.nrSamplesPerChannelBeforeFilter();
+      hostFracDelays[antenna][1] = (dN - hostFracDelays[antenna][0]) / ps.nrSamplesPerChannelAfterFilter();
     }
 
     // std::cout << "antenna-0 d0"<< hostFracDelays[0][0] << " d1" << hostFracDelays[0][1] << std::endl;
