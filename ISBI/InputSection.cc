@@ -91,28 +91,31 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     {
       PerformanceCounter::Measurement measurement(counter, stream, 0, 0, (endTime - earlyStartTime) * nrBytesPerTime);
 
-      if (startTimeIndex < endTimeIndex) {
-        for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-          size_t offset = (station * ps.nrPolarizations() + pol) * (endTimeIndex - startTimeIndex) * nrBytesPerTime;
-          size_t bytesToCopy = (endTimeIndex - startTimeIndex) * nrBytesPerTime;
-          cu::DeviceMemory dst(devBuffer + offset);	
-	  stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(), bytesToCopy);
-	}	
-      } else {
-        for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-          size_t offset = (station * ps.nrPolarizations() + pol) * (ps.nrRingBufferSamplesPerSubband() -
-              startTimeIndex) * nrBytesPerTime;
+      unsigned n = endTime - earlyStartTime;
+
+      for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
+        size_t offset = (station * ps.nrPolarizations() + pol) * n * nrBytesPerTime;
+
+        unsigned firstPart = ps.nrRingBufferSamplesPerSubband() - startTimeIndex;
+        if (startTimeIndex < endTimeIndex) firstPart = endTimeIndex - startTimeIndex;
+        unsigned secondPart = n - firstPart;
+
+        if (firstPart > 0) {
           cu::DeviceMemory dst(devBuffer + offset);
-          stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol][startTimeIndex].origin(),
-              (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime);	
+          stream.memcpyHtoDAsync(
+              dst, 
+              hostRingBuffers[subband][station][pol][startTimeIndex].origin(),
+              firstPart * nrBytesPerTime
+          );
         }
-        if (endTimeIndex > 0) {
-          for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-            size_t offset = (ps.nrRingBufferSamplesPerSubband() - startTimeIndex) * nrBytesPerTime + 
-              (station * ps.nrPolarizations() + pol) * endTimeIndex * nrBytesPerTime;
-            cu::DeviceMemory dst(devBuffer + offset);
-            stream.memcpyHtoDAsync(dst, hostRingBuffers[subband][station][pol].origin(), endTimeIndex * nrBytesPerTime);
-          }
+
+        if (secondPart > 0) {
+          cu::DeviceMemory dst(devBuffer + offset + firstPart * nrBytesPerTime);
+          stream.memcpyHtoDAsync(
+              dst,
+              hostRingBuffers[subband][station][pol][0].origin(),
+              secondPart * nrBytesPerTime
+          );
         }
       }
     }

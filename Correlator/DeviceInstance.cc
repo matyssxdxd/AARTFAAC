@@ -306,24 +306,26 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
         ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
 
       fractionalIndex = (double)nextBlockTimeOffset * (n - 1) / totalTimeRange;
-      indexLow = (size_t) fractionalIndex;
+      indexLow = (size_t)fractionalIndex;
       indexHigh = indexLow + 1;
 
       weight = fractionalIndex - indexLow;
       double dN = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
         ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
 
-      hostFracDelays[antenna][0] = d0; 
+      hostFracDelays[antenna][0] = (float)d0; 
       
-      hostFracDelays[antenna][1] = (dN - hostFracDelays[antenna][0]) / ps.nrSamplesPerChannelAfterFilter();
+      hostFracDelays[antenna][1] = (float)((dN - d0) / ps.nrSamplesPerChannelBeforeFilter());
     }
 
-    // std::cout << "antenna-0 d0"<< hostFracDelays[0][0] << " d1" << hostFracDelays[0][1] << std::endl;
-    // std::cout << "antenna-1 d0"<< hostFracDelays[1][0] << " d1" << hostFracDelays[1][1] << std::endl;
-    
+#if 0
+    std::cout << "antenna-0 d0 "<< hostFracDelays[0][0] << " d1 " << hostFracDelays[0][1] << std::endl;
+    std::cout << "antenna-1 d0 "<< hostFracDelays[1][0] << " d1 " << hostFracDelays[1][1] << std::endl;
+#endif
+
     double subbandCenterFrequency = ps.centerFrequencies()[subband];
 
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * ps.nrStations()); 
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
 
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
