@@ -24,12 +24,10 @@ std::vector<std::string> AARTFAAC_Parset::getDescriptors(const std::string &arg)
 ISBI_Parset::ISBI_Parset(int argc, char **argv)
 :
   CorrelatorParset(argc, argv, false),
-  _nrRingBufferSamplesPerSubband(2 * 16000000 + 256),
+  _nrRingBufferSamplesPerSubband(2 * 16000000 + 512),
   _visibilitiesIntegration(1)
 {
   using namespace boost::program_options;
-
-  // std::string delayPath;
 
   options_description allowed_options;
 
@@ -43,7 +41,6 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
     ("nrRingBufferSamplesPerSubband,T", value<unsigned>(&_nrRingBufferSamplesPerSubband))
     ("visibilitiesIntegration,I", value<unsigned>(&_visibilitiesIntegration))
     ("channelMapping,M", value<std::vector<int>>(&_channelMapping)->multitoken())
-    // ("delayPath,K", value<std::string>()->notifier([&delayPath] (const std::string &arg) { delayPath = arg; } ))
   ;
 
 
@@ -52,29 +49,6 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
   toPassFurther = collect_unrecognized(parsed.options, include_positional);
   store(parsed, vm);
   notify(vm);
-
-  // std::ifstream delayFile(delayPath, std::ios::binary);
-
-  // uint32_t num_rows, num_cols;
-  // delayFile.read(reinterpret_cast<char*>(&num_rows), sizeof(uint32_t));
-  // delayFile.read(reinterpret_cast<char*>(&num_cols), sizeof(uint32_t));
-  // 
-  // _trueDelays = std::vector<int>(num_rows * num_cols);
-  // _fracDelays = std::vector<double>(num_rows * num_cols);
-
-  // for (uint32_t i = 0; i < num_rows; i++)
-  //   delayFile.read(reinterpret_cast<char*>(_trueDelays[i * num_cols].data()), num_cols * sizeof(int));
-
-  // for (uint32_t i = 0; i < num_rows; i++)
-  //   delayFile.read(reinterpret_cast<char*>(_fracDelays[i * num_cols].data()), num_cols * sizeof(double));
-
-
-  // uint32_t num_frequencies;
-  // delayFile.read(reinterpret_cast<char*>(&num_frequencies), sizeof(uint32_t));
-
-  // _centerFrequencies = std::vector<double>(num_frequencies, 0);
-
-  // delayFile.read(reinterpret_cast<char*>(_centerFrequencies.data()), num_frequencies * sizeof(double));
 
   if (toPassFurther.size() > 0)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');

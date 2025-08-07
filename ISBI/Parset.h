@@ -19,9 +19,6 @@ class ISBI_Parset : public CorrelatorParset
     unsigned visibilitiesIntegration() const { return _visibilitiesIntegration; }
     unsigned nrRingBufferSamplesPerSubband() const { return _nrRingBufferSamplesPerSubband; }
     std::vector<int> channelMapping() const { return _channelMapping; }
-    // std::vector<int> trueDelays() const { return _trueDelays; }
-    // std::vector<double> fracDelays() const { return _fracDelays; }
-    // std::vector<double> centerFrequencies() const { return _centerFrequencies; }
 
     const int maxDelay() const { return -50; }; 
     

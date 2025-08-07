@@ -63,14 +63,6 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
 
     size_t nrBytesPerTime = ps.nrBytesPerRealSample();
-   
-#if 0
-    std::cout << "delay: " << delay << "\n";
-    std::cout << "earlyStartTime: " << earlyStartTime << "\n";
-    std::cout << "endTime: " << endTime << "\n";
-    std::cout << "startTimeIndex: " << startTimeIndex << "\n";
-    std::cout << "endTimeIndex: " << endTimeIndex << "\n";
-#endif
 
 #if 0
     for (unsigned time = startTimeIndex; time != endTimeIndex; time ++, time %= ps.nrRingBufferSamplesPerSubband())
@@ -91,14 +83,33 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     {
       PerformanceCounter::Measurement measurement(counter, stream, 0, 0, (endTime - earlyStartTime) * nrBytesPerTime);
 
-      unsigned n = endTime - earlyStartTime;
+      uint32_t n = endTime - earlyStartTime;
+
+      assert(n <= ps.nrRingBufferSamplesPerSubband());
 
       for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
         size_t offset = (station * ps.nrPolarizations() + pol) * n * nrBytesPerTime;
 
-        unsigned firstPart = ps.nrRingBufferSamplesPerSubband() - startTimeIndex;
-        if (startTimeIndex < endTimeIndex) firstPart = endTimeIndex - startTimeIndex;
-        unsigned secondPart = n - firstPart;
+        uint32_t firstPart = ps.nrRingBufferSamplesPerSubband() - startTimeIndex;
+        uint32_t secondPart = 0; 
+
+        if (startTimeIndex < endTimeIndex) {
+          firstPart = endTimeIndex - startTimeIndex;
+        } else {
+          secondPart = n - firstPart;
+        }
+
+        assert(firstPart + secondPart == n);
+
+#if 0
+        std::cout << "startTimeIndex: " << startTimeIndex << "\n"; 
+        std::cout << "endTimeIndex: " << endTimeIndex << "\n"; 
+        std::cout << "n: " << n << "\n";
+        std::cout << "firstPart: " << firstPart << "\n";
+        std::cout << "secondPart: " << secondPart << "\n";
+        std::cout << firstPart * nrBytesPerTime << " bytes to copy.\n";
+        std::cout << secondPart * nrBytesPerTime << " bytes to copy. (second part)\n";
+#endif    
 
         if (firstPart > 0) {
           cu::DeviceMemory dst(devBuffer + offset);
