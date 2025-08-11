@@ -140,7 +140,7 @@ InputBuffer::~InputBuffer()
 
 
 void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket) {
-  TimeStamp beginTime = packetBuffer[firstPacket].timeStamp(ps.subbandBandwidth());
+  TimeStamp beginTime = packetBuffer[firstPacket].header.timestamp();
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
@@ -235,7 +235,7 @@ void InputBuffer::inputThreadBody(){
        }*/
 
     for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
-      timeStamp = frames[nextPacket].timeStamp(ps.subbandBandwidth()); 
+      timeStamp = frames[nextPacket].header.timestamp(); 
       if (timeStamp != expectedTimeStamp) {
         if (firstPacket < nextPacket) {
           handleConsecutivePackets(frames, firstPacket, nextPacket);

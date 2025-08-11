@@ -34,6 +34,22 @@ struct VDIFHeader {
   dataframe_length(0), log2_nchan(0), version(0), station_id(0),
   thread_id(0), bits_per_sample(0), data_type(0), user_data1(0), edv(0),
   user_data2(0), user_data3(0), user_data4(0){};
+  
+  std::time_t timestamp() const {
+    std::tm date{};
+    date.tm_year = 2000 + ref_epoch / 2 - 1900;
+    date.tm_mon = (ref_epoch & 1) ? 6 : 0;
+    date.tm_mday = 1;
+    date.tm_hour = 0;
+    date.tm_min = 0;
+    date.tm_sec = 0;
+
+    std::time_t time = timegm(&date);
+    auto time_point = std::chrono::system_clock::from_time_t(time);
+    auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
+
+    return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * 16e6 + dataframe_in_second * 2000;
+  }
 };
 
 struct Frame {
@@ -87,6 +103,7 @@ struct Frame {
     TimeStamp timestamp = TimeStamp::fromDate(buffer, subbandBandwidth);
     return timestamp + header.dataframe_in_second * samples_per_frame;
   }
+
 };
 
 class VDIFStream : public Stream {
