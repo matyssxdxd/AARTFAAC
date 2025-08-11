@@ -31,12 +31,12 @@ public:
 
 private:
     const static unsigned	maxNrPacketsInBuffer = 64;
-    const static unsigned	maxPacketSize	     = 6166; // this must not be a power of 2, or performance will collapse due to limited cache associativity
+    const static unsigned	maxPacketSize	     = 8032; // this must not be a power of 2, or performance will collapse due to limited cache associativity
 
     void inputThreadBody(), noInputThreadBody(), logThreadBody();
     std::function<std::ostream & (std::ostream &)> logMessage() const;
 
-    void handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket);
+    void handleConsecutivePackets(char packetBuffer[maxNrPacketsInBuffer][maxPacketSize], unsigned firstPacket, unsigned lastPacket);
     SparseSet<TimeStamp> getCurrentValidData(const TimeStamp &earlyStartTime, const TimeStamp &endTime);
 
     const ISBI_Parset	&ps;

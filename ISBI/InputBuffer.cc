@@ -139,8 +139,9 @@ InputBuffer::~InputBuffer()
 }
 
 
-void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, unsigned firstPacket, unsigned lastPacket) {
-  TimeStamp beginTime = packetBuffer[firstPacket].header.timestamp();
+void InputBuffer::handleConsecutivePackets(char packetBuffer[maxNrPacketsInBuffer][maxPacketSize], unsigned firstPacket, unsigned lastPacket) {
+  VDIFHeader* header = reinterpret_cast<VDIFHeader*>(packetBuffer[firstPacket]);
+  TimeStamp beginTime{header->timestamp()};
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
@@ -154,11 +155,15 @@ void InputBuffer::handleConsecutivePackets(std::vector<Frame> &packetBuffer, uns
     readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
+      int16_t data[header->samplesPerFrame() * header->numberOfChannels()];
+      header->decode2bit(packetBuffer[packet], data);
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
 	for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
       	  for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
 	    unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
-	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = packetBuffer[packet].samples[sample][0][mappedIndex];
+            size_t dataIndex = sample * ps.nrSubbands() * ps.nrPolarizations() + mappedIndex;
+	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) 
+              = data[dataIndex]; 
 	  }
 	}
 	if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
@@ -195,11 +200,8 @@ void InputBuffer::inputThreadBody(){
   VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation]); 
   assert(&vdifStream != nullptr);  
 
-  std::vector<Frame> frames;
-
-  for (unsigned i = 0; i < maxNrPacketsInBuffer; i++) {
-    frames.emplace_back(vdifStream.samplesPerFrame(), 1, vdifStream.numberOfChannels());
-  }
+  char dataBuffer[maxNrPacketsInBuffer][maxPacketSize];
+  std::cout << sizeof(dataBuffer[0]) << " data buffer 0 size\n";
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
@@ -221,7 +223,7 @@ void InputBuffer::inputThreadBody(){
     //#if defined USE_RECVMMSG  
     try {
       for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++)
-        vdifStream.read(frames[nrPackets]);
+        vdifStream.read(dataBuffer[nrPackets]);
     }
     catch (Stream::EndOfStreamException) {
 #pragma omp critical (clog)
@@ -235,10 +237,11 @@ void InputBuffer::inputThreadBody(){
        }*/
 
     for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
-      timeStamp = frames[nextPacket].header.timestamp(); 
+      VDIFHeader* header = reinterpret_cast<VDIFHeader*>(dataBuffer[nextPacket]);
+      timeStamp = header->timestamp();
       if (timeStamp != expectedTimeStamp) {
         if (firstPacket < nextPacket) {
-          handleConsecutivePackets(frames, firstPacket, nextPacket);
+          handleConsecutivePackets(dataBuffer, firstPacket, nextPacket);
         }
 
         if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
@@ -260,7 +263,7 @@ void InputBuffer::inputThreadBody(){
 
 
     if (firstPacket < nextPacket) {
-      handleConsecutivePackets(frames, firstPacket, nextPacket);
+      handleConsecutivePackets(dataBuffer, firstPacket, nextPacket);
     } 
 
 

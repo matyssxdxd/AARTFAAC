@@ -14,83 +14,122 @@
 #include <iostream>
 #include <fstream>
 
-VDIFStream::VDIFStream(std::string inputFile)
-  : file(inputFile, std::ios::binary) {
-    if (!file.is_open()) {
-      throw std::runtime_error("Failed to open file");
+
+std::time_t VDIFHeader::timestamp() const {
+  std::tm date{};
+  date.tm_year = 2000 + ref_epoch / 2 - 1900;
+  date.tm_mon = (ref_epoch & 1) ? 6 : 0;
+  date.tm_mday = 1;
+  date.tm_hour = 0;
+  date.tm_min = 0;
+  date.tm_sec = 0;
+
+  std::time_t time = timegm(&date);
+  auto time_point = std::chrono::system_clock::from_time_t(time);
+  auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
+
+  return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * 16e6 + dataframe_in_second * 2000;
+}
+
+int32_t VDIFHeader::dataSize() const {
+  return dataframe_length * 8 - sizeof(VDIFHeader);
+}
+
+int32_t VDIFHeader::numberOfChannels() const {
+  return 1 << log2_nchan;
+}
+
+int32_t VDIFHeader::samplesPerFrame() const {
+  int32_t bps = bits_per_sample + 1;
+  return dataSize() * 8 / bps / numberOfChannels();
+}
+
+void VDIFHeader::decode2bit(char* data, int16_t* result) {
+  int16_t DECODER_LEVEL[4] = { -3, -1, 1, 3 };	
+
+  char* dataBuffer = &data[sizeof(VDIFHeader)];
+
+  for (unsigned sample = 0; sample < samplesPerFrame(); sample++) {
+    for (unsigned channel = 0; channel < numberOfChannels(); channel++) {
+      unsigned byteIdx = (sample * numberOfChannels() + channel) / 4; // 4 = samples per byte
+      unsigned bitOffset = ((sample * numberOfChannels() + channel) % 4) * 2;
+
+      if (byteIdx < dataSize()) {
+        uint8_t byte = static_cast<uint8_t>(dataBuffer[byteIdx]);
+        uint8_t sample2bit = (byte >> bitOffset) & 0b11;
+        result[sample * numberOfChannels() + channel] = DECODER_LEVEL[sample2bit];
+      }
     }
-
-    _numberOfFrames = 0;    
-
-    if (readVDIFHeader(firstHeader, 0)) {
-      uint32_t bitsPerSample = firstHeader.bits_per_sample + 1;
-      _numberOfChannels = 1 << firstHeader.log2_nchan;
-      uint32_t valuesPerWord = 32 / bitsPerSample / 1;
-      uint32_t payloadNBytes = firstHeader.dataframe_length * 8 - 32;
-      _samplesPerFrame = payloadNBytes / 4 * valuesPerWord / _numberOfChannels;
-      _dataFrameSize = static_cast<uint32_t>(firstHeader.dataframe_length) * 8 - 32 + 16 * static_cast<uint32_t>(firstHeader.legacy_mode);
-    } else {
-      throw std::runtime_error("Failed to read VDIF header.");
-    }
   }
-
-bool VDIFStream::readVDIFHeader(VDIFHeader& header, off_t offset) {
-  if (!file.is_open()) {
-    return false;
-  }
-
-  file.seekg(offset, std::ios::beg);
-
-  file.read(reinterpret_cast<char*>(&header), sizeof(VDIFHeader)); 
-
-  if (file.peek() == EOF) {
-    throw EndOfStreamException("readVDIFHeader");
-  }	
-
-  if (!file) {
-    std::cerr << "Failed to read header from file" << std::endl;
-    return false;
-  }
-
-  return true;
 }
 
 
-bool VDIFStream::readVDIFData(boost::multi_array<int16_t, 3> &frame, off_t offset) {
-  if (!file.is_open()) {
-    std::cerr << "Failed to open file" << std::endl;
-    return false;
+VDIFStream::VDIFStream(std::string inputFile) 
+  : file(inputFile, std::ios::binary), _numberOfFrames(0), _invalidFrames(0) { 
+    if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
+    if (!readFirstHeader()) { throw std::runtime_error("Could not find a valid header!"); }
+}
+
+bool VDIFStream::readFirstHeader() {
+  while (file) {
+    VDIFHeader header;
+    char* headerBuffer = reinterpret_cast<char*>(&header);
+
+    file.read(headerBuffer, 16);
+    if (!file) { return false; }
+
+    size_t nwords = file.gcount() / 4;
+
+    if (header.legacy_mode == 0) {
+      file.read(headerBuffer + 16, 16);
+      nwords = file.gcount() / 4;
+    }
+
+    if (nwords == 4) {
+      if (((uint32_t *)headerBuffer)[0] == 0x11223344 ||
+          ((uint32_t *)headerBuffer)[1] == 0x11223344 ||
+          ((uint32_t *)headerBuffer)[2] == 0x11223344 ||
+          ((uint32_t *)headerBuffer)[3] == 0x11223344) {
+        _invalidFrames++;
+      } else {
+        std::memcpy(&firstHeader, &header, sizeof(VDIFHeader));
+        return true;
+      }
+    }
   }
+  return false;
+}
 
 
-  file.seekg(offset, std::ios::beg);
-  size_t dataSize = firstHeader.dataframe_length * 8 - 32; // 1004 * 8 = 8032 - 32 = 8000 bytes
-  std::vector<uint32_t> buffer(dataSize / sizeof(uint32_t));
-
-  if (file.peek() == EOF) {
-    throw EndOfStreamException("readVDIFData");
-  }
-
-  file.read(reinterpret_cast<char*>(buffer.data()), dataSize);
-
-  decode(buffer, frame);
-
+bool VDIFStream::checkHeader(VDIFHeader& header) {
+  if (header.legacy_mode != firstHeader.legacy_mode) return false;
+  if (header.ref_epoch != firstHeader.ref_epoch) return false;
+  if (header.dataframe_length != firstHeader.dataframe_length) return false;
+  if (header.log2_nchan != firstHeader.log2_nchan) return false;
+  if (header.version != firstHeader.version) return false;
+  if (header.station_id != firstHeader.station_id) return false;
+  if (header.bits_per_sample != firstHeader.bits_per_sample) return false;
+  if (header.data_type != firstHeader.data_type) return false;
   return true;
 }
 
-void VDIFStream::read(Frame &frame){
-  off_t offset = (sizeof(VDIFHeader) + _dataFrameSize) * _numberOfFrames;
-  if (!readVDIFHeader(frame.header, offset)) {
-    std::cout << "readVDIFHeader\n";
-    return;
+void VDIFStream::read(char* data) {
+  off_t offset = _numberOfFrames * (firstHeader.dataSize() + sizeof(VDIFHeader));
+  file.seekg(offset, std::ios::beg);
+  VDIFHeader header;
+  char* headerBuffer = reinterpret_cast<char*>(&header);
+
+  file.read(headerBuffer, sizeof(VDIFHeader));
+  if (!file) { throw EndOfStreamException("read"); }
+
+  if (!checkHeader(header)) {
+    _invalidFrames++;
+    // find next valid header
   }
 
-  if (!readVDIFData(frame.samples, offset + sizeof(VDIFHeader))) {
-    std::cout << "readVDIFData\n";
-    return;
-  }
-
-  _numberOfFrames += 1;
+  std::memcpy(data, &header, sizeof(VDIFHeader));
+  file.read(&data[sizeof(VDIFHeader)], firstHeader.dataSize());
+  _numberOfFrames++;
 }
 
 void VDIFStream::printVDIFHeader(VDIFHeader header) {
@@ -111,25 +150,6 @@ void VDIFStream::printVDIFHeader(VDIFHeader header) {
   std::cout << "user_data2: " << header.user_data2 << std::endl;
   std::cout << "user_data3: " << header.user_data3 << std::endl;
   std::cout << "user_data4: " << header.user_data4 << std::endl;
-}
-
-
-void VDIFStream::decode(std::vector<uint32_t> &words, boost::multi_array<int16_t, 3> &data) {
-  const int samples_per_word = 16 / _numberOfChannels;
-
-  for (size_t word_idx = 0; word_idx < words.size(); word_idx++) {
-    uint32_t word = words[word_idx];
-    for (int sample_idx = 0; sample_idx < samples_per_word; sample_idx++) {
-      for (size_t channel = 0; channel < _numberOfChannels; channel++) {
-        // Calculate bit position
-        int bit_pos = (sample_idx * _numberOfChannels + channel) * 2;
-
-        // Extract 2-bit sample and decode it
-        uint32_t sample = (word >> bit_pos) & 0b11;
-        data[word_idx * samples_per_word + sample_idx][0][channel] = DECODER_LEVEL[sample];
-      }
-    }
-  }
 }
 
 VDIFStream::~VDIFStream() {
