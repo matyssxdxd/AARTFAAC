@@ -51,6 +51,7 @@ class VDIFStream : public Stream {
 
     bool readFirstHeader();
     bool checkHeader(VDIFHeader& header);
+    void findNextValidHeader(VDIFHeader& header, off_t& offset); 
     void read(char* data);
 
     void printVDIFHeader(VDIFHeader header);

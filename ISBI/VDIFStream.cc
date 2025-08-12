@@ -113,6 +113,19 @@ bool VDIFStream::checkHeader(VDIFHeader& header) {
   return true;
 }
 
+void VDIFStream::findNextValidHeader(VDIFHeader& header, off_t& offset) {
+  while (!checkHeader(header)) {
+    _numberOfFrames++;
+    offset = _numberOfFrames * (firstHeader.dataSize() + sizeof(VDIFHeader));
+    file.seekg(offset, std::ios::beg);
+
+    char* headerBuffer = reinterpret_cast<char*>(&header);
+    
+    file.read(headerBuffer, sizeof(VDIFHeader));
+    if (!file) { throw EndOfStreamException("findNextValidHeader"); }
+  }
+}
+
 void VDIFStream::read(char* data) {
   off_t offset = _numberOfFrames * (firstHeader.dataSize() + sizeof(VDIFHeader));
   file.seekg(offset, std::ios::beg);
@@ -124,10 +137,12 @@ void VDIFStream::read(char* data) {
 
   if (!checkHeader(header)) {
     _invalidFrames++;
-    // find next valid header
+    findNextValidHeader(header, offset);
   }
 
   std::memcpy(data, &header, sizeof(VDIFHeader));
+
+  file.seekg(offset + sizeof(VDIFHeader), std::ios::beg);
   file.read(&data[sizeof(VDIFHeader)], firstHeader.dataSize());
   _numberOfFrames++;
 }
