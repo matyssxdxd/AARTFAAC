@@ -4,7 +4,6 @@
 #include "Common/Affinity.h"
 #include "Common/CUDA_Support.h"
 #include "libfilter/Filter.h"
-#include "Correlator/Kernels/TransposeKernel.h"
 #include "Correlator/TCC.h"
 
 #include <functional>
@@ -58,13 +57,7 @@ class DeviceInstance
   protected:
     std::future<tcc::Filter>		filterFuture, filterOddFuture; // compile asynchronously
     std::future<TCC>		tccFuture; // compile asynchronously
-// REMOVED
-//  std::future<Module>         transposeFuture;
-    cu::DeviceMemory		devTransposedInputBuffer;
     cu::DeviceMemory		devCorrectedData;
-// REMOVED
-//   Module			transposeModule;
-//   TransposeKernel		transposeKernel;
     tcc::Filter			filter, filterOdd;
     TCC				tcc;
 

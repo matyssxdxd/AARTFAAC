@@ -93,6 +93,8 @@ bool VDIFStream::readFirstHeader() {
         _invalidFrames++;
       } else {
         std::memcpy(&firstHeader, &header, sizeof(VDIFHeader));
+        printVDIFHeader(firstHeader);
+        exit(1);
         return true;
       }
     }

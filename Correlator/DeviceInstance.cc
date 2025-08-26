@@ -10,6 +10,8 @@
 
 #include <iostream>
 
+#define ISBI_DELAYS
+
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
 {
@@ -67,11 +69,13 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
       .mirror = true
     };
 
+#ifdef ISBI_DELAYS
     filterOddArgs.delays = tcc::FilterArgs::Delays {
       .subbandBandwidth = ps.subbandBandwidth(),
       .polynomialOrder = 1,
       .separatePerPolarization = false
     };
+#endif
 
     return tcc::Filter(device, filterOddArgs);
   })),
@@ -92,7 +96,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
     filterArgs.firFilter = tcc::FilterArgs::FIR_Filter {
     	.nrTaps = 16,
-	.sampleFormat = tcc::FilterArgs::Format::fp32
+        .sampleFormat = tcc::FilterArgs::Format::fp32
     };
 
     filterArgs.fft = tcc::FilterArgs::FFT {
@@ -101,11 +105,13 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
         .mirror = false 
     };
 
+#ifdef ISBI_DELAYS 
     filterArgs.delays = {
       .subbandBandwidth = ps.subbandBandwidth(),
       .polynomialOrder = 1,
       .separatePerPolarization = false
     };
+#endif
 
 
     return tcc::Filter(device, filterArgs);
@@ -115,20 +121,8 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     context.setCurrent();
     return TCC(device, ps);
   })),
-
-// REMOVED
-//  transposeFuture(std::async([&] {
-//    context.setCurrent();
-//    nvrtc::Program program(std::string(&_binary_Correlator_Kernels_Transpose_cu_start, &_binary_Correlator_Kernels_Transpose_cu_end), "Correlator/Kernels/Transpose.cu");
-//    return Module(device, program, ps);
-//  })),
   
-  devTransposedInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerRealSample()),
   devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
-  
-  // REMOVED
-  // transposeModule(transposeFuture.get()),
-  // transposeKernel(ps, device, transposeModule),
   
   filterOdd(filterOddFuture.get()),
   filter(filterFuture.get()),
@@ -238,14 +232,7 @@ void DeviceInstance::doSubband(const TimeStamp &time,
   {
     std::lock_guard<std::mutex> lock(enqueueMutex);
 
-// REMOVED
-//    transposeKernel.launchAsync(executeStream,
-//				devTransposedInputBuffer,
-//			        cu::DeviceMemory(hostInputBuffer),
-//				startIndex,
-//				pipeline.transposeCounter);
-
-    
+    std::cout << "DeviceInstance:doSubband\n";
     filter.launchAsync(executeStream,
 		         devCorrectedData,
 			 cu::DeviceMemory(hostInputBuffer));
@@ -280,52 +267,48 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     hostToDeviceStream.wait(inputDataFree);
 
+    double subbandCenterFrequency = ps.centerFrequencies()[subband];
+#ifdef ISBI_DELAYS
     if (time != previousTime) {
       // only transfer delays if time has changed
       previousTime = time;
 
-      hostToDeviceStream.memcpyHtoDAsync(devDelaysAtBegin, hostDelaysAtBegin.origin(), hostDelaysAtBegin.bytesize());
-      hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
+      // hostToDeviceStream.memcpyHtoDAsync(devDelaysAtBegin, hostDelaysAtBegin.origin(), hostDelaysAtBegin.bytesize());
+      // hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
+      uint64_t timeOffset = time - ps.startTime();
+      uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
+      uint64_t nextBlockTimeOffset = timeOffset + ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
+
+      size_t n = ps.fracDelays().size() / 2;
+
+      float hostFracDelays[2][2];
+
+      for (unsigned antenna = 0; antenna < ps.nrStations(); antenna++) {
+        double fractionalIndex = (double)timeOffset * (n - 1) / totalTimeRange;
+        size_t indexLow = (size_t)fractionalIndex;
+        size_t indexHigh = indexLow + 1;
+
+        double weight = fractionalIndex - indexLow;
+        double d0 = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
+          ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
+
+        fractionalIndex = (double)nextBlockTimeOffset * (n - 1) / totalTimeRange;
+        indexLow = (size_t)fractionalIndex;
+        indexHigh = indexLow + 1;
+
+        weight = fractionalIndex - indexLow;
+        double dN = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
+          ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
+
+        hostFracDelays[antenna][0] = (float)d0; 
+
+        hostFracDelays[antenna][1] = (float)((dN - d0) / ps.nrSamplesPerChannelBeforeFilter());
+      }
+
+      std::cout << "Transfering delays...\n";
+      hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
     }
-
-    uint64_t timeOffset = time - ps.startTime();
-    uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-    uint64_t nextBlockTimeOffset = timeOffset + ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
-
-    size_t n = ps.fracDelays().size() / 2;
-    
-    float hostFracDelays[2][2];
-     
-    for (unsigned antenna = 0; antenna < ps.nrStations(); antenna++) {
-      double fractionalIndex = (double)timeOffset * (n - 1) / totalTimeRange;
-      size_t indexLow = (size_t)fractionalIndex;
-      size_t indexHigh = indexLow + 1;
-
-      double weight = fractionalIndex - indexLow;
-      double d0 = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
-        ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
-
-      fractionalIndex = (double)nextBlockTimeOffset * (n - 1) / totalTimeRange;
-      indexLow = (size_t)fractionalIndex;
-      indexHigh = indexLow + 1;
-
-      weight = fractionalIndex - indexLow;
-      double dN = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
-        ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
-
-      hostFracDelays[antenna][0] = (float)d0; 
-      
-      hostFracDelays[antenna][1] = (float)((dN - d0) / ps.nrSamplesPerChannelBeforeFilter());
-    }
-
-#if 0
-    std::cout << "antenna-0 d0 "<< hostFracDelays[0][0] << " d1 " << hostFracDelays[0][1] << std::endl;
-    std::cout << "antenna-1 d0 "<< hostFracDelays[1][0] << " d1 " << hostFracDelays[1][1] << std::endl;
 #endif
-
-    double subbandCenterFrequency = ps.centerFrequencies()[subband];
-
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
 
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
@@ -340,28 +323,34 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     //pipeline.samplesCounter.doOperation(inputTransferReady[0], 0, 0, bytesSent);
 
     executeStream.wait(inputTransferReady);
-// REMOVED
-//    transposeKernel.launchAsync(executeStream,
-//				devTransposedInputBuffer,
-//				devInputBuffer,
-//				0,
-//				pipeline.transposeCounter);
 
     // next block of samples and delays can be sent to GPU
     executeStream.record(inputDataFree);
 
     if (((subband + 1) % 2) != 0) {
+#ifdef ISBI_DELAYS 
       filterOdd.launchAsync(executeStream,
-		            devCorrectedData,
-			    devInputBuffer,
+        	            devCorrectedData,
+        		    devInputBuffer,
                             devFracDelays,
                             subbandCenterFrequency);
+#else
+      filterOdd.launchAsync(executeStream,
+        	            devCorrectedData,
+        		    devInputBuffer);
+#endif
     } else {
+#ifdef ISBI_DELAYS
       filter.launchAsync(executeStream,
-		         devCorrectedData,
-			 devInputBuffer,
+        	         devCorrectedData,
+        		 devInputBuffer,
                          devFracDelays,
                          subbandCenterFrequency);
+#else
+      filter.launchAsync(executeStream,
+        	         devCorrectedData,
+        		 devInputBuffer);
+#endif
     }
 
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
