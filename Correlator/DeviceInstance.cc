@@ -10,7 +10,7 @@
 
 #include <iostream>
 
-#define ISBI_DELAYS
+#undef ISBI_DELAYS
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
@@ -267,49 +267,51 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     hostToDeviceStream.wait(inputDataFree);
 
-    double subbandCenterFrequency = ps.centerFrequencies()[subband];
-#ifdef ISBI_DELAYS
     if (time != previousTime) {
       // only transfer delays if time has changed
       previousTime = time;
 
-      // hostToDeviceStream.memcpyHtoDAsync(devDelaysAtBegin, hostDelaysAtBegin.origin(), hostDelaysAtBegin.bytesize());
-      // hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
-      uint64_t timeOffset = time - ps.startTime();
-      uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-      uint64_t nextBlockTimeOffset = timeOffset + ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
+      hostToDeviceStream.memcpyHtoDAsync(devDelaysAtBegin, hostDelaysAtBegin.origin(), hostDelaysAtBegin.bytesize());
+      hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
+    
 
-      size_t n = ps.fracDelays().size() / 2;
+#ifdef ISBI_DELAYS
+    uint64_t timeOffset = time - ps.startTime();
+    uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
+    uint64_t nextBlockTimeOffset = timeOffset + ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
 
-      float hostFracDelays[2][2];
+    size_t n = ps.fracDelays().size() / 2;
 
-      for (unsigned antenna = 0; antenna < ps.nrStations(); antenna++) {
-        double fractionalIndex = (double)timeOffset * (n - 1) / totalTimeRange;
-        size_t indexLow = (size_t)fractionalIndex;
-        size_t indexHigh = indexLow + 1;
+    float hostFracDelays[2][2];
 
-        double weight = fractionalIndex - indexLow;
-        double d0 = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
-          ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
+    for (unsigned antenna = 0; antenna < ps.nrStations(); antenna++) {
+      double fractionalIndex = (double)timeOffset * (n - 1) / totalTimeRange;
+      size_t indexLow = (size_t)fractionalIndex;
+      size_t indexHigh = indexLow + 1;
 
-        fractionalIndex = (double)nextBlockTimeOffset * (n - 1) / totalTimeRange;
-        indexLow = (size_t)fractionalIndex;
-        indexHigh = indexLow + 1;
+      double weight = fractionalIndex - indexLow;
+      double d0 = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
+        ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
 
-        weight = fractionalIndex - indexLow;
-        double dN = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
-          ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
+      fractionalIndex = (double)nextBlockTimeOffset * (n - 1) / totalTimeRange;
+      indexLow = (size_t)fractionalIndex;
+      indexHigh = indexLow + 1;
 
-        hostFracDelays[antenna][0] = (float)d0; 
+      weight = fractionalIndex - indexLow;
+      double dN = ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexLow] * (1.0 - weight) +
+        ps.fracDelays()[antenna * ps.fracDelays().size() / 2 + indexHigh] * weight;
 
-        hostFracDelays[antenna][1] = (float)((dN - d0) / ps.nrSamplesPerChannelBeforeFilter());
-      }
+      hostFracDelays[antenna][0] = (float)d0; 
 
-      std::cout << "Transfering delays...\n";
-      hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
+      hostFracDelays[antenna][1] = (float)((dN - d0) / ps.nrSamplesPerChannelBeforeFilter());
     }
+
+
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
 #endif
 
+    }
+    double subbandCenterFrequency = ps.centerFrequencies()[subband];
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
 
