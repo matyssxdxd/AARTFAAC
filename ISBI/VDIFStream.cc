@@ -15,7 +15,7 @@
 #include <fstream>
 
 
-std::time_t VDIFHeader::timestamp() const {
+int64_t VDIFHeader::timestamp() const {
   std::tm date{};
   date.tm_year = 2000 + ref_epoch / 2 - 1900;
   date.tm_mon = (ref_epoch & 1) ? 6 : 0;
@@ -28,7 +28,7 @@ std::time_t VDIFHeader::timestamp() const {
   auto time_point = std::chrono::system_clock::from_time_t(time);
   auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
 
-  return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * 16e6 + dataframe_in_second * 2000;
+  return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * 16000000LL + dataframe_in_second * 2000;
 }
 
 int32_t VDIFHeader::dataSize() const {

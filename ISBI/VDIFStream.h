@@ -29,7 +29,7 @@ struct VDIFHeader {
   // Word 5-7
   uint32_t      user_data2,user_data3,user_data4;
   
-  std::time_t timestamp() const;
+  int64_t timestamp() const;
   int32_t dataSize() const;
   int32_t samplesPerFrame() const;
   int32_t numberOfChannels() const;

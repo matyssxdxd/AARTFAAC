@@ -11,6 +11,7 @@
 #include <iostream>
 
 #undef ISBI_DELAYS
+#undef ISBI_FIR
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
@@ -58,15 +59,19 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
       .isPurelyReal = true
     };
 
+#ifdef ISBI_FIR
     filterOddArgs.firFilter = tcc::FilterArgs::FIR_Filter {
       .nrTaps = 16,
       .sampleFormat = tcc::FilterArgs::Format::fp32
     };
+#else
+    filterOddArgs.firFilter = std::nullopt;
+#endif
 
     filterOddArgs.fft = tcc::FilterArgs::FFT {
       .sampleFormat = tcc::FilterArgs::Format::fp32,
       .shift = false,
-      .mirror = true
+      .mirror = true 
     };
 
 #ifdef ISBI_DELAYS
@@ -94,10 +99,14 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 	.isPurelyReal = true
     };
 
+#ifdef ISBI_FIR
     filterArgs.firFilter = tcc::FilterArgs::FIR_Filter {
     	.nrTaps = 16,
         .sampleFormat = tcc::FilterArgs::Format::fp32
     };
+#else
+    filterArgs.firFilter = std::nullopt;
+#endif
 
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
@@ -311,7 +320,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 #endif
 
     }
-    double subbandCenterFrequency = ps.centerFrequencies()[subband];
+    double subbandCenterFrequency = ps.centerFrequencies()[subband] * 1e6;
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
 
