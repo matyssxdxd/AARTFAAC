@@ -37,7 +37,29 @@ struct VDIFHeader {
   int32_t dataSize() const;
   int32_t samplesPerFrame() const;
   int32_t numberOfChannels() const;
-  void decode2bit(char* data, int16_t* result);
+  void decode2bit(const std::vector<char>& frame, std::vector<int16_t>& out) const;
+
+  friend std::ostream& operator<<(std::ostream& os, const VDIFHeader& header) {
+    os << "----- VDIF HEADER -----" << std::endl;
+    os << "sec_from_epoch: " << header.sec_from_epoch << std::endl;
+    os << "legacy_mode: " << static_cast<int>(header.legacy_mode) << std::endl;
+    os << "invalid: " << static_cast<int>(header.invalid) << std::endl;
+    os << "dataframe_in_second: " << header.dataframe_in_second << std::endl;
+    os << "ref_epoch: " << static_cast<int>(header.ref_epoch) << std::endl;
+    os << "dataframe_length: " << header.dataframe_length << std::endl;
+    os << "log2_nchan: " << static_cast<int>(header.log2_nchan) << std::endl;
+    os << "version: " << static_cast<int>(header.version) << std::endl;
+    os << "station_id: " << header.station_id << std::endl;
+    os << "thread_id: " << header.thread_id << std::endl;
+    os << "data_type: " << static_cast<int>(header.data_type) << std::endl;
+    os << "user_data1: " << header.user_data1 << std::endl;
+    os << "edv: " << static_cast<int>(header.edv) << std::endl;
+    os << "user_data2: " << header.user_data2 << std::endl;
+    os << "user_data3: " << header.user_data3 << std::endl;
+    os << "user_data4: " << header.user_data4 << std::endl;
+    return os;
+  }
+
 };
 
 class VDIFStream : public Stream {
@@ -48,13 +70,16 @@ class VDIFStream : public Stream {
     uint32_t _invalidFrames;
     uint32_t _numberOfFrames;
 
+    std::size_t _headerBytes = sizeof(VDIFHeader);
+    std::size_t _payloadBytes = 0;
+    std::size_t _totalBytes = 0; 
   public:
     VDIFStream(std::string inputFile);
 
     bool readFirstHeader();
     bool checkHeader(VDIFHeader& header);
     void findNextValidHeader(VDIFHeader& header, off_t& offset); 
-    void read(char* data);
+    void read(std::vector<char>& frame);
 
     void printVDIFHeader(VDIFHeader header);
 

@@ -139,9 +139,10 @@ InputBuffer::~InputBuffer()
 }
 
 
-void InputBuffer::handleConsecutivePackets(char packetBuffer[maxNrPacketsInBuffer][maxPacketSize], unsigned firstPacket, unsigned lastPacket) {
-  VDIFHeader* header = reinterpret_cast<VDIFHeader*>(packetBuffer[firstPacket]);
-  TimeStamp beginTime{header->timestamp()};
+void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPacketsInBuffer>& packetBuffer, unsigned firstPacket, unsigned lastPacket) {
+  VDIFHeader header = {};
+  std::memcpy(&header, packetBuffer[firstPacket].data(), sizeof(VDIFHeader));
+  TimeStamp beginTime{header.timestamp()};
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
@@ -155,15 +156,17 @@ void InputBuffer::handleConsecutivePackets(char packetBuffer[maxNrPacketsInBuffe
     readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
-      int16_t data[header->samplesPerFrame() * header->numberOfChannels()];
-      header->decode2bit(packetBuffer[packet], data);
+      VDIFHeader packetHeader = {};
+      std::memcpy(&packetHeader, packetBuffer[packet].data(), sizeof(VDIFHeader));
+      std::vector<int16_t> decoded;
+      decoded.resize(packetHeader.samplesPerFrame() * packetHeader.numberOfChannels());
+      packetHeader.decode2bit(packetBuffer[packet], decoded);
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
 	for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
       	  for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
 	    unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
             size_t dataIndex = sample * ps.nrSubbands() * ps.nrPolarizations() + mappedIndex;
-	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) 
-              = data[dataIndex]; 
+	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = decoded[dataIndex]; 
 	  }
 	}
 	if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
@@ -200,8 +203,7 @@ void InputBuffer::inputThreadBody(){
   VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation]); 
   assert(&vdifStream != nullptr);  
 
-  char dataBuffer[maxNrPacketsInBuffer][maxPacketSize];
-  std::cout << sizeof(dataBuffer[0]) << " data buffer 0 size\n";
+  std::array<std::vector<char>, maxNrPacketsInBuffer> packetBuffer;
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
@@ -222,8 +224,10 @@ void InputBuffer::inputThreadBody(){
   do {
     //#if defined USE_RECVMMSG  
     try {
-      for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++)
-        vdifStream.read(dataBuffer[nrPackets]);
+      for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++) {
+        packetBuffer[nrPackets].resize(maxPacketSize);
+        vdifStream.read(packetBuffer[nrPackets]);
+      }
     }
     catch (Stream::EndOfStreamException) {
 #pragma omp critical (clog)
@@ -237,11 +241,12 @@ void InputBuffer::inputThreadBody(){
        }*/
 
     for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
-      VDIFHeader* header = reinterpret_cast<VDIFHeader*>(dataBuffer[nextPacket]);
-      timeStamp = header->timestamp();
+      VDIFHeader header{};
+      std::memcpy(&header, packetBuffer[nextPacket].data(), sizeof(VDIFHeader));
+      timeStamp = header.timestamp();
       if (timeStamp != expectedTimeStamp) {
         if (firstPacket < nextPacket) {
-          handleConsecutivePackets(dataBuffer, firstPacket, nextPacket);
+          handleConsecutivePackets(packetBuffer, firstPacket, nextPacket);
         }
 
         if (ps.realTime() && abs(TimeStamp::now(ps.clockSpeed()) - timeStamp) > 15 * ps.subbandBandwidth()) {
@@ -263,7 +268,7 @@ void InputBuffer::inputThreadBody(){
 
 
     if (firstPacket < nextPacket) {
-      handleConsecutivePackets(dataBuffer, firstPacket, nextPacket);
+      handleConsecutivePackets(packetBuffer, firstPacket, nextPacket);
     } 
 
 

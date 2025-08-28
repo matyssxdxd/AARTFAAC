@@ -1,18 +1,13 @@
-#include <iostream>
-#include <cstdio>
-#include <stdio.h>
-#include <stdlib.h>
-#include <cstdint>
-
 #include "VDIFStream.h"
 
+#include <iostream>
+#include <cstdio>
+#include <stdlib.h>
+#include <cstdint>
 #include <stdexcept>
 #include <chrono>
-#include <cstdint>
 #include <vector>
 #include <cstring>
-#include <iostream>
-#include <fstream>
 
 
 int64_t VDIFHeader::timestamp() const {
@@ -44,21 +39,39 @@ int32_t VDIFHeader::samplesPerFrame() const {
   return dataSize() * 8 / bps / numberOfChannels();
 }
 
-void VDIFHeader::decode2bit(char* data, int16_t* result) {
-  char* dataBuffer = &data[sizeof(VDIFHeader)];
+void VDIFHeader::decode2bit(const std::vector<char>& frame, std::vector<int16_t>& out) const {
+    const std::size_t headerBytes = sizeof(VDIFHeader);
+    const std::size_t payloadBytes = static_cast<std::size_t>(dataSize());
+    const std::size_t totalBytes   = headerBytes + payloadBytes;
 
-  for (unsigned sample = 0; sample < samplesPerFrame(); sample++) {
-    for (unsigned channel = 0; channel < numberOfChannels(); channel++) {
-      unsigned byteIdx = (sample * numberOfChannels() + channel) / 4; // 4 = samples per byte
-      unsigned bitOffset = ((sample * numberOfChannels() + channel) % 4) * 2;
-
-      if (byteIdx < dataSize()) {
-        uint8_t byte = static_cast<uint8_t>(dataBuffer[byteIdx]);
-        uint8_t sample2bit = (byte >> bitOffset) & 0b11;
-        result[sample * numberOfChannels() + channel] = DECODER_LEVEL_2BIT[sample2bit];
-      }
+    if (frame.size() < totalBytes) {
+        throw std::invalid_argument("decode2bit: frame too small for header + payload");
     }
-  }
+
+    const char* dataBuffer = frame.data() + headerBytes;
+
+    const unsigned nchan = static_cast<unsigned>(numberOfChannels());
+    const unsigned nsamp = static_cast<unsigned>(samplesPerFrame());
+
+    out.resize(static_cast<std::size_t>(nsamp) * nchan);
+
+    for (unsigned sample = 0; sample < nsamp; ++sample) {
+        for (unsigned channel = 0; channel < nchan; ++channel) {
+            const unsigned idx = sample * nchan + channel;
+
+            // 4 samples per byte, 2 bits per sample
+            const unsigned byteIdx   = idx / 4;
+            const unsigned bitOffset = (idx % 4) * 2;
+
+            if (byteIdx < payloadBytes) {
+                const uint8_t byte = static_cast<uint8_t>(dataBuffer[byteIdx]);
+                const uint8_t code = static_cast<uint8_t>((byte >> bitOffset) & 0b11);
+                out[idx] = DECODER_LEVEL_2BIT[code];
+            } else {
+                out[idx] = 0;
+            }
+        }
+    }
 }
 
 
@@ -66,38 +79,36 @@ VDIFStream::VDIFStream(std::string inputFile)
   : file(inputFile, std::ios::binary), _numberOfFrames(0), _invalidFrames(0) { 
     if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
     if (!readFirstHeader()) { throw std::runtime_error("Could not find a valid header!"); }
+
+
+    _payloadBytes = static_cast<std::size_t>(firstHeader.dataSize());
+    _totalBytes = _headerBytes + _payloadBytes;
 }
 
 bool VDIFStream::readFirstHeader() {
   while (file) {
-    VDIFHeader header;
-    char* headerBuffer = reinterpret_cast<char*>(&header);
+    VDIFHeader header{};
 
-    file.read(headerBuffer, 16);
+    file.read(reinterpret_cast<char*>(&header), _headerBytes);
     if (!file) { return false; }
 
-    size_t nwords = file.gcount() / 4;
-
-    if (header.legacy_mode == 0) {
-      file.read(headerBuffer + 16, 16);
-      nwords = file.gcount() / 4;
-    }
-
-    if (nwords == 4) {
-      if (((uint32_t *)headerBuffer)[0] == 0x11223344 ||
-          ((uint32_t *)headerBuffer)[1] == 0x11223344 ||
-          ((uint32_t *)headerBuffer)[2] == 0x11223344 ||
-          ((uint32_t *)headerBuffer)[3] == 0x11223344) {
+    if (file.gcount() == static_cast<std::streamsize>(_headerBytes)) {
+      uint32_t words[4];
+      static_assert(sizeof(words) == 16, "words must be 16 bytes");
+      std::memcpy(words, &header, sizeof(words));
+      if (words[0] == 0x11223344 ||
+          words[1] == 0x11223344 ||
+          words[2] == 0x11223344 ||
+          words[3] == 0x11223344) {
         _invalidFrames++;
       } else {
-        std::memcpy(&firstHeader, &header, sizeof(VDIFHeader));
+        std::memcpy(&firstHeader, &header, _headerBytes);
         return true;
       }
     }
   }
   return false;
 }
-
 
 bool VDIFStream::checkHeader(VDIFHeader& header) {
   if (header.legacy_mode != firstHeader.legacy_mode) return false;
@@ -114,55 +125,46 @@ bool VDIFStream::checkHeader(VDIFHeader& header) {
 void VDIFStream::findNextValidHeader(VDIFHeader& header, off_t& offset) {
   while (!checkHeader(header)) {
     _numberOfFrames++;
-    offset = _numberOfFrames * (firstHeader.dataSize() + sizeof(VDIFHeader));
+    offset = static_cast<off_t>(_numberOfFrames) * static_cast<off_t>(_totalBytes);
     file.seekg(offset, std::ios::beg);
-
-    char* headerBuffer = reinterpret_cast<char*>(&header);
     
-    file.read(headerBuffer, sizeof(VDIFHeader));
-    if (!file) { throw EndOfStreamException("findNextValidHeader"); }
+    file.read(reinterpret_cast<char*>(&header), _headerBytes);
+    if (file.gcount() != static_cast<std::streamsize>(_headerBytes)) {
+      throw EndOfStreamException("VDIFStream::findNextValidHeader: truncated header"); 
+    }
   }
 }
 
-void VDIFStream::read(char* data) {
-  off_t offset = _numberOfFrames * (firstHeader.dataSize() + sizeof(VDIFHeader));
-  file.seekg(offset, std::ios::beg);
-  VDIFHeader header;
-  char* headerBuffer = reinterpret_cast<char*>(&header);
+void VDIFStream::read(std::vector<char>& frame) {
+  if (frame.size() != _totalBytes) { frame.resize(_totalBytes); }
 
-  file.read(headerBuffer, sizeof(VDIFHeader));
-  if (!file) { throw EndOfStreamException("read"); }
+  off_t offset = static_cast<off_t>(_numberOfFrames) * static_cast<off_t>(_totalBytes);
+
+  file.seekg(offset, std::ios::beg);
+  if (!file) { throw EndOfStreamException("VDIFStream::read: seek failed"); }
+
+  VDIFHeader header{};
+  file.read(reinterpret_cast<char*>(&header), _headerBytes);
+  if (file.gcount() != static_cast<std::streamsize>(_headerBytes)) {
+    throw EndOfStreamException("VDIFStream::read: truncated header"); 
+  }
 
   if (!checkHeader(header)) {
     _invalidFrames++;
     findNextValidHeader(header, offset);
   }
 
-  std::memcpy(data, &header, sizeof(VDIFHeader));
+  std::memcpy(frame.data(), &header, _headerBytes);
 
-  file.seekg(offset + sizeof(VDIFHeader), std::ios::beg);
-  file.read(&data[sizeof(VDIFHeader)], firstHeader.dataSize());
+  file.seekg(offset + static_cast<std::streamoff>(_headerBytes), std::ios::beg);
+  if (!file) { throw EndOfStreamException("VDIFStream::read: seek to payload failed"); }
+
+  file.read(frame.data() + _headerBytes, static_cast<std::streamsize>(_payloadBytes));
+  if (file.gcount() != static_cast<std::streamsize>(_payloadBytes)) {
+    throw EndOfStreamException("VDIFStream::read: truncated payload");
+  }
+
   _numberOfFrames++;
-}
-
-void VDIFStream::printVDIFHeader(VDIFHeader header) {
-  std::cout << "----- VDIF HEADER -----" << std::endl;
-  std::cout << "sec_from_epoch: " << header.sec_from_epoch << std::endl;
-  std::cout << "legacy_mode: " << static_cast<int>(header.legacy_mode) << std::endl;
-  std::cout << "invalid: " << static_cast<int>(header.invalid) << std::endl;
-  std::cout << "dataframe_in_second: " << header.dataframe_in_second << std::endl;
-  std::cout << "ref_epoch: " << static_cast<int>(header.ref_epoch) << std::endl;
-  std::cout << "dataframe_length: " << header.dataframe_length << std::endl;
-  std::cout << "log2_nchan: " << static_cast<int>(header.log2_nchan) << std::endl;
-  std::cout << "version: " << static_cast<int>(header.version) << std::endl;
-  std::cout << "station_id: " << header.station_id << std::endl;
-  std::cout << "thread_id: " << header.thread_id << std::endl;
-  std::cout << "data_type: " << static_cast<int>(header.data_type) << std::endl;
-  std::cout << "user_data1: " << header.user_data1 << std::endl;
-  std::cout << "edv: " << static_cast<int>(header.edv) << std::endl;
-  std::cout << "user_data2: " << header.user_data2 << std::endl;
-  std::cout << "user_data3: " << header.user_data3 << std::endl;
-  std::cout << "user_data4: " << header.user_data4 << std::endl;
 }
 
 VDIFStream::~VDIFStream() {
