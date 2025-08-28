@@ -28,7 +28,7 @@ int64_t VDIFHeader::timestamp() const {
   auto time_point = std::chrono::system_clock::from_time_t(time);
   auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
 
-  return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * 16000000LL + dataframe_in_second * 2000;
+  return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * SAMPLE_RATE + dataframe_in_second * samplesPerFrame();
 }
 
 int32_t VDIFHeader::dataSize() const {
@@ -45,8 +45,6 @@ int32_t VDIFHeader::samplesPerFrame() const {
 }
 
 void VDIFHeader::decode2bit(char* data, int16_t* result) {
-  int16_t DECODER_LEVEL[4] = { -3, -1, 1, 3 };	
-
   char* dataBuffer = &data[sizeof(VDIFHeader)];
 
   for (unsigned sample = 0; sample < samplesPerFrame(); sample++) {
@@ -57,7 +55,7 @@ void VDIFHeader::decode2bit(char* data, int16_t* result) {
       if (byteIdx < dataSize()) {
         uint8_t byte = static_cast<uint8_t>(dataBuffer[byteIdx]);
         uint8_t sample2bit = (byte >> bitOffset) & 0b11;
-        result[sample * numberOfChannels() + channel] = DECODER_LEVEL[sample2bit];
+        result[sample * numberOfChannels() + channel] = DECODER_LEVEL_2BIT[sample2bit];
       }
     }
   }

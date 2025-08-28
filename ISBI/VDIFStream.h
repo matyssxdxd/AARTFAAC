@@ -7,8 +7,12 @@
 #include <fstream>
 #include <complex>
 #include <vector>
-#include <boost/multi_array.hpp>
 #include <ctime>
+
+// Temporary until cross-correlations are fixed, can be read from VDIF file and/or Parset.
+constexpr int SAMPLE_RATE = 16000000;
+
+static constexpr int16_t DECODER_LEVEL_2BIT[] = { -3, -1, 1, 3 };
 
 struct VDIFHeader {
   // Word 0
@@ -43,8 +47,6 @@ class VDIFStream : public Stream {
     VDIFHeader firstHeader;
     uint32_t _invalidFrames;
     uint32_t _numberOfFrames;
-
-    float DECODER_LEVEL[4] = { -3, -1, 1, 3 };	
 
   public:
     VDIFStream(std::string inputFile);
