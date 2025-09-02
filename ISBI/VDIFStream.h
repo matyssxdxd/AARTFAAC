@@ -66,7 +66,6 @@ class VDIFStream : public Stream {
   private:
     std::ifstream file;
 
-    VDIFHeader firstHeader;
     uint32_t _invalidFrames;
     uint32_t _numberOfFrames;
 
@@ -75,6 +74,8 @@ class VDIFStream : public Stream {
     std::size_t _totalBytes = 0; 
   public:
     VDIFStream(std::string inputFile);
+
+    VDIFHeader firstHeader;
 
     bool readFirstHeader();
     bool checkHeader(VDIFHeader& header);

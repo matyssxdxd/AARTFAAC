@@ -11,8 +11,8 @@
 #include <list>
 #include <iostream>
 
-
-
+#define ISBI_DELAYS
+#define ISBI_FIR
 
 void printArgv(int argc, char **argv)
 {
@@ -55,29 +55,9 @@ int main(int argc, char **argv){
     
     printArgv(argc, argv);
     ISBI_Parset ps(argc, argv);
-    for (unsigned i = 0; i < ps.trueDelays().size(); ++i) {
-      std::cout << ps.trueDelays()[i] << " ";
-    }
-    std::cout << "\n";
-
-    for (unsigned i = 0; i < ps.fracDelays().size(); ++i) {
-      std::cout << static_cast<float>(ps.fracDelays()[i]) << " ";
-    }
-    std::cout << "\n";
-
-    for (unsigned i = 0; i < ps.centerFrequencies().size(); ++i) {
-      std::cout << static_cast<float>(ps.centerFrequencies()[i]) << " ";
-    }
-    std::cout << "\n";
     printSettings(ps);
-   
-   ISBI_CorrelatorPipeline correlatorPipeline (ps);
-   //InputSection inputSection(ps);
-   //inputSection.startReadTransaction(ps.startTime());
-   
-    //correlatorPipeline.startReadTransaction(ps.startTime());
-  correlatorPipeline.doWork();
-    ///std::clog<<"size is " << sizeof (ISBI_CorrelatorPipeline) << std::endl;
+
+    ISBI_CorrelatorPipeline(ps).doWork();
       
     #if !defined CREATE_BACKTRACE_ON_EXCEPTION
   } catch (cu::Error &error) {

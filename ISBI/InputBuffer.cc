@@ -203,6 +203,9 @@ void InputBuffer::inputThreadBody(){
   VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation]); 
   assert(&vdifStream != nullptr);  
 
+  std::cout << "Station " << myFirstStation << std::endl;
+  std::cout << vdifStream.firstHeader << std::endl;
+
   std::array<std::vector<char>, maxNrPacketsInBuffer> packetBuffer;
 
   bool printedImpossibleTimeStampWarning = false;
@@ -395,7 +398,11 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
+#ifdef ISBI_DELAYS
   TimeStamp earlyStartTime   = startTime - nrHistorySamples - ps.maxDelay();
+#else
+  TimeStamp earlyStartTime   = startTime - nrHistorySamples;
+#endif
   TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
