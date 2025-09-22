@@ -17,7 +17,7 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   allowed_options.add_options()
     ("nrOutputChannelsPerSubband,C", value<unsigned>(&_nrOutputChannelsPerSubband)->default_value(0))
     ("correlationMode,m", value<unsigned>(&_correlationMode)->default_value(0xF))
-    ("delayPath,K", value<std::string>()->notifier([&delayPath] (const std::string &arg) { delayPath = arg; } ))
+    ("delayPath,delayPath", value<std::string>()->notifier([&delayPath] (const std::string &arg) { delayPath = arg; } ))
   ;
 
   variables_map vm;
@@ -26,26 +26,61 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   store(parsed, vm);
   notify(vm);
   
+  if (delayPath.empty()) {
+    throw Error("delayPath parameter is required but not provided");
+  }
+  
   std::ifstream delayFile(delayPath, std::ios::binary);
+  if (!delayFile.is_open()) {
+    throw Error("Could not open delay file: " + delayPath);
+  }
  
-  uint32_t num_rows, num_cols;
-  delayFile.read(reinterpret_cast<char*>(&num_rows), sizeof(uint32_t));
-  delayFile.read(reinterpret_cast<char*>(&num_cols), sizeof(uint32_t));
- 
-  _trueDelays = std::vector<int>(num_rows * num_cols);
-  _fracDelays = std::vector<double>(num_rows * num_cols);
- 
-  delayFile.read(reinterpret_cast<char*>(_trueDelays.data()), num_cols * num_rows * sizeof(int));
- 
-  delayFile.read(reinterpret_cast<char*>(_fracDelays.data()), num_cols * num_rows * sizeof(double));
- 
+  uint32_t delays_1_len, delays_2_len;
+
+  delayFile.read(reinterpret_cast<char*>(&delays_1_len), sizeof(uint32_t));
+  if (delayFile.gcount() != sizeof(uint32_t)) {
+    throw Error("Failed to read delays_1_len from delay file");
+  }
+  std::vector<double> delays_1(delays_1_len, 0);
+  delayFile.read(reinterpret_cast<char*>(delays_1.data()), delays_1_len * sizeof(double));
+  if (delayFile.gcount() != delays_1_len * sizeof(double)) {
+    throw Error("Failed to read delays_1 data from delay file");
+  }
+
+  delayFile.read(reinterpret_cast<char*>(&delays_2_len), sizeof(uint32_t));
+  if (delayFile.gcount() != sizeof(uint32_t)) {
+    throw Error("Failed to read delays_2_len from delay file");
+  }
+
+  std::vector<double> delays_2(delays_2_len, 0);
+  delayFile.read(reinterpret_cast<char*>(delays_2.data()), delays_2_len * sizeof(double));
+  if (delayFile.gcount() != delays_2_len * sizeof(double)) {
+    throw Error("Failed to read delays_2 data from delay file");
+  }
  
   uint32_t num_frequencies;
+
   delayFile.read(reinterpret_cast<char*>(&num_frequencies), sizeof(uint32_t));
- 
+  if (delayFile.gcount() != sizeof(uint32_t)) {
+    throw Error("Failed to read num_frequencies from delay file");
+  }
+
   _centerFrequencies = std::vector<double>(num_frequencies, 0);
- 
   delayFile.read(reinterpret_cast<char*>(_centerFrequencies.data()), num_frequencies * sizeof(double));
+  if (delayFile.gcount() != num_frequencies * sizeof(double)) {
+    throw Error("Failed to read center frequencies data from delay file");
+  }
+
+  delayFile.close();
+  
+  if (delays_1_len != delays_2_len) {
+    throw Error("delays_1 and delays_2 must have the same length");
+  }
+  
+  _delays = std::vector<double>(delays_1_len, 0);
+  for (size_t i = 0; i < delays_1_len; i++) {
+    _delays[i] = delays_1[i] - delays_2[i];
+  }
 
   if (throwExceptionOnUnmatchedParameter && toPassFurther.size() > 0)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');

@@ -6,6 +6,8 @@
 
 #include <fstream>
 
+#define ISBI_DELAYS
+
 InputSection::InputSection(const ISBI_Parset &ps)
 :
   ps(ps),
@@ -44,19 +46,23 @@ InputSection::~InputSection()
 
 
 
+void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory &devBuffer, PerformanceCounter &counter, const TimeStamp &startTime, unsigned subband) {
 
-void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory &devBuffer, PerformanceCounter &counter, const TimeStamp &startTime, unsigned subband)
-{
 #ifdef ISBI_DELAYS
+  uint32_t blockSize = ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
   uint64_t timeOffset = startTime - ps.startTime();
   uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-  double proportion = static_cast<double>(timeOffset) / totalTimeRange;
-  int delayTimeIndex = std::min(static_cast<int>(proportion * ps.trueDelays().size() / 2), static_cast<int>(ps.trueDelays().size() / 2 - 1));
+  uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
+  uint32_t delayIndex = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
 #endif
-  
+
   for (unsigned station = 0; station < ps.nrStations(); station++) {
 #ifdef ISBI_DELAYS
-    int delay = ps.trueDelays()[station * ps.trueDelays().size() / 2 + delayTimeIndex];
+    int delay = 0;
+    if (station == 1) {
+      double delayInSamples = ps.delays()[delayIndex] * ps.subbandBandwidth();
+      delay = static_cast<int>(std::floor(delayInSamples + .5));
+    }
 #endif
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
 #ifdef ISBI_DELAYS
@@ -70,22 +76,6 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
 
     size_t nrBytesPerTime = ps.nrBytesPerRealSample();
-
-#if 0
-    for (unsigned time = startTimeIndex; time != endTimeIndex; time ++, time %= ps.nrRingBufferSamplesPerSubband())
-      for (unsigned station = 0; station < ps.nrStations(); station ++)
-        for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
-          switch (ps.nrBitsPerSample()) {
-            case 16 : * ((std::complex<short> *) hostRingBuffers[subband][time][station][polarization].origin()) = std::complex<short>(0);
-  
-  		    if (time == (startTimeIndex + 0) % ps.nrRingBufferSamplesPerSubband() && station == 42 && polarization == 0)
-  		      * ((std::complex<short> *) hostRingBuffers[subband][time][station][polarization].origin()) = std::complex<short>(128, 0);
-  		    if (time == (startTimeIndex + 0) % ps.nrRingBufferSamplesPerSubband() && station == 43 && polarization == 1)
-  		      * ((std::complex<short> *) hostRingBuffers[subband][time][station][polarization].origin()) = std::complex<short>(42, 42);
-  
-  		    break;
-          }
-#endif
 
     {
       PerformanceCounter::Measurement measurement(counter, stream, 0, 0, (endTime - earlyStartTime) * nrBytesPerTime);
@@ -108,23 +98,13 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 
         assert(firstPart + secondPart == n);
 
-#if 0
-        std::cout << "startTimeIndex: " << startTimeIndex << "\n"; 
-        std::cout << "endTimeIndex: " << endTimeIndex << "\n"; 
-        std::cout << "n: " << n << "\n";
-        std::cout << "firstPart: " << firstPart << "\n";
-        std::cout << "secondPart: " << secondPart << "\n";
-        std::cout << firstPart * nrBytesPerTime << " bytes to copy.\n";
-        std::cout << secondPart * nrBytesPerTime << " bytes to copy. (second part)\n";
-#endif    
-
         if (firstPart > 0) {
           cu::DeviceMemory dst(devBuffer + offset);
           stream.memcpyHtoDAsync(
               dst, 
               hostRingBuffers[subband][station][pol][startTimeIndex].origin(),
               firstPart * nrBytesPerTime
-          );
+              );
         }
 
         if (secondPart > 0) {
@@ -133,7 +113,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
               dst,
               hostRingBuffers[subband][station][pol][0].origin(),
               secondPart * nrBytesPerTime
-          );
+              );
         }
       }
     }

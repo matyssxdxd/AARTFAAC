@@ -11,9 +11,6 @@
 #include <list>
 #include <iostream>
 
-#define ISBI_DELAYS
-#define ISBI_FIR
-
 void printArgv(int argc, char **argv)
 {
   std::clog << "command line arguments: " << argv[0];
@@ -56,6 +53,13 @@ int main(int argc, char **argv){
     printArgv(argc, argv);
     ISBI_Parset ps(argc, argv);
     printSettings(ps);
+
+    std::cout << "delays = ";
+
+    for (int i = 0; i < ps.delays().size(); i++) {
+      std::cout << ps.delays()[i] << " ";
+    }
+    std::cout << std::endl;
 
     ISBI_CorrelatorPipeline(ps).doWork();
       

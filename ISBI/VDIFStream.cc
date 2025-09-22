@@ -11,20 +11,22 @@
 
 
 int64_t VDIFHeader::timestamp() const {
-  std::tm date{};
-  date.tm_year = 2000 + ref_epoch / 2 - 1900;
-  date.tm_mon = (ref_epoch & 1) ? 6 : 0;
-  date.tm_mday = 1;
-  date.tm_hour = 0;
-  date.tm_min = 0;
-  date.tm_sec = 0;
+    std::tm date{};
+    date.tm_year = 2000 + ref_epoch / 2 - 1900;
+    date.tm_mon = (ref_epoch & 1) ? 6 : 0;
+    date.tm_mday = 1;
+    date.tm_hour = 0;
+    date.tm_min = 0;
+    date.tm_sec = 0;
 
-  std::time_t time = timegm(&date);
-  auto time_point = std::chrono::system_clock::from_time_t(time);
-  auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
+    std::time_t time = timegm(&date);
+    auto time_point = std::chrono::system_clock::from_time_t(time);
 
-  return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * SAMPLE_RATE + dataframe_in_second * samplesPerFrame();
+    auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
+    return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * SAMPLE_RATE
+           + dataframe_in_second * samplesPerFrame();
 }
+
 
 int32_t VDIFHeader::dataSize() const {
   return dataframe_length * 8 - sizeof(VDIFHeader);
@@ -76,7 +78,7 @@ void VDIFHeader::decode2bit(const std::vector<char>& frame, std::vector<int16_t>
 
 
 VDIFStream::VDIFStream(std::string inputFile) 
-  : file(inputFile, std::ios::binary), _numberOfFrames(0), _invalidFrames(0) { 
+  : file(inputFile, std::ios::binary), _numberOfFrames(0), _invalidFrames(0), firstHeaderFound(false) { 
     if (!file.is_open()) { throw std::runtime_error("Failed to open file!"); }
     if (!readFirstHeader()) { throw std::runtime_error("Could not find a valid header!"); }
 
@@ -85,10 +87,13 @@ VDIFStream::VDIFStream(std::string inputFile)
     _totalBytes = _headerBytes + _payloadBytes;
 }
 
+
 bool VDIFStream::readFirstHeader() {
   while (file) {
     VDIFHeader header{};
 
+    off_t offset = static_cast<off_t>(_numberOfFrames) * static_cast<off_t>(8032);
+    file.seekg(offset, std::ios::beg);
     file.read(reinterpret_cast<char*>(&header), _headerBytes);
     if (!file) { return false; }
 

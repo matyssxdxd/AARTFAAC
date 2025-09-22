@@ -20,8 +20,8 @@
 #undef FAKE_TIMES
 #undef USE_RECVMMSG
 
-
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
+
 
 void uncached_memcpy(void *__restrict dst, const void *__restrict src, size_t size)
 {
@@ -161,25 +161,26 @@ void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPa
       std::vector<int16_t> decoded;
       decoded.resize(packetHeader.samplesPerFrame() * packetHeader.numberOfChannels());
       packetHeader.decode2bit(packetBuffer[packet], decoded);
+
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
-	for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
-      	  for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
-	    unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
+        for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
+          for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
+            unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
             size_t dataIndex = sample * ps.nrSubbands() * ps.nrPolarizations() + mappedIndex;
-	    *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = decoded[dataIndex]; 
-	  }
-	}
-	if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
+            *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = decoded[dataIndex]; 
+          }
+        }
+        if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
       }
     }
-	
+
     {
       std::lock_guard<std::mutex> lock(validDataMutex);
       validData.exclude(TimeStamp(0, 1), endTime - nrRingBufferSamplesPerSubband);
       const SparseSet<TimeStamp>::Ranges &ranges = validData.getRanges();
 
       if (ranges.size() < 16 || ranges.back().end == beginTime) {
-	validData.include(beginTime, endTime);
+        validData.include(beginTime, endTime);
       }
     }
 
@@ -190,7 +191,7 @@ void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPa
 
 
 
-void InputBuffer::inputThreadBody(){
+void InputBuffer::inputThreadBody() {
   TimeStamp expectedTimeStamp(0, ps.clockSpeed()), stopTime = ps.stopTime() + ps.nrSamplesPerSubbandBeforeFilter();
 #if defined FAKE_TIMES
   //expectedTimeStamp = ps.startTime() - nrHistorySamples - 20;
@@ -290,7 +291,7 @@ std::cerr << logMessage() << " caught std::exception: " << ex.what() << std::end
 }*/
 
 #endif
-  }
+}
 
 
 void InputBuffer::logThreadBody()

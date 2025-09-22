@@ -32,6 +32,7 @@ struct VDIFHeader {
   uint32_t       edv:8;
   // Word 5-7
   uint32_t      user_data2,user_data3,user_data4;
+
   
   int64_t timestamp() const;
   int32_t dataSize() const;
@@ -51,6 +52,7 @@ struct VDIFHeader {
     os << "version: " << static_cast<int>(header.version) << std::endl;
     os << "station_id: " << header.station_id << std::endl;
     os << "thread_id: " << header.thread_id << std::endl;
+    os << "bits_per_sample: " << static_cast<int>(header.bits_per_sample) << std::endl;
     os << "data_type: " << static_cast<int>(header.data_type) << std::endl;
     os << "user_data1: " << header.user_data1 << std::endl;
     os << "edv: " << static_cast<int>(header.edv) << std::endl;
@@ -72,6 +74,8 @@ class VDIFStream : public Stream {
     std::size_t _headerBytes = sizeof(VDIFHeader);
     std::size_t _payloadBytes = 0;
     std::size_t _totalBytes = 0; 
+
+    bool firstHeaderFound;
   public:
     VDIFStream(std::string inputFile);
 
