@@ -9,9 +9,7 @@
 #include <omp.h>
 
 #include <iostream>
-
-#define ISBI_DELAYS
-#define ISBI_FIR
+#include <cmath>
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
@@ -82,6 +80,11 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     };
 #endif
 
+    filterOddArgs.output = tcc::FilterArgs::Output {
+      .sampleFormat = tcc::FilterArgs::Format::fp16,
+      .scaleFactor = std::nullopt
+    };
+
     return tcc::Filter(device, filterOddArgs);
   })),
 
@@ -121,6 +124,11 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
       .separatePerPolarization = false
     };
 #endif
+    
+    filterArgs.output = tcc::FilterArgs::Output {
+      .sampleFormat = tcc::FilterArgs::Format::fp16,
+      .scaleFactor = std::nullopt
+    };
 
 
     return tcc::Filter(device, filterArgs);
@@ -190,7 +198,7 @@ DeviceInstanceWithoutUnifiedMemory::DeviceInstanceWithoutUnifiedMemory(Correlato
   devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerRealSample()  + 500),
   devDelaysAtBegin(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
   devDelaysAfterEnd(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
-  devFracDelays(sizeof(double) * 2 * 2),
+  devFracDelays(sizeof(float) * 2 * 2),
   currentVisibilityBuffer(0)
 {
   for (unsigned buffer = 0; buffer < NR_DEV_VISIBILITIES_BUFFERS; buffer ++)
@@ -290,15 +298,15 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
       uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
 
-      double hostFracDelays[2][2];
+      float hostFracDelays[2][2];
 
       double delayInSamples = ps.delays()[i] * ps.subbandBandwidth();
       int integerDelay = static_cast<int>(std::floor(delayInSamples + .5));
-      double fractionalDelay = delayInSamples - integerDelay;
+      float fractionalDelay = static_cast<float>(delayInSamples - integerDelay);
 
       double delayInSamples_N = ps.delays()[i + 1] * ps.subbandBandwidth();
       int integerDelay_N = static_cast<int>(std::floor(delayInSamples + .5));
-      double dN = delayInSamples_N - integerDelay_N;
+      float dN = static_cast<float>(delayInSamples_N - integerDelay_N);
 
       // In this case the antenna 0 is chosen as a reference antenna
       hostFracDelays[1][0] = fractionalDelay; 
@@ -306,7 +314,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       hostFracDelays[0][0] = 0;
       hostFracDelays[0][1] = 0;
 
-      hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(double) * 2 * 2); 
+      hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
 #endif
     }
 
@@ -355,6 +363,44 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.record(inputDataFree);
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
+
+#ifdef DEBUG_PHASE_DUMP
+    unsigned nrTimesPerBlock = 128 / ps.nrBitsPerSample();
+    MultiArrayHostBuffer<std::complex<__half>, 5> hostCorrectedData(boost::extents[ps.nrOutputChannelsPerSubband()][ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock][ps.nrStations()][ps.nrPolarizations()][nrTimesPerBlock]);
+    executeStream.memcpyDtoHAsync(hostCorrectedData.origin(), devCorrectedData, (size_t) ps.nrOutputChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
+    executeStream.synchronize();
+
+    std::cout << "=== Phase Dump: Time=" << time << ", Subband=" << subband << " ===\n";
+    
+    unsigned dumpCount = 0;
+    const unsigned maxDumps = 1000;
+
+    for (unsigned outputChannel = 0; outputChannel < ps.nrOutputChannelsPerSubband(); outputChannel ++)
+      for (unsigned timeMajor = 0; timeMajor < ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock; timeMajor ++)
+        for (unsigned receiver = 0; receiver < ps.nrStations(); receiver ++)
+          for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
+            for (unsigned timeMinor = 0; timeMinor < nrTimesPerBlock; timeMinor ++) {
+              std::complex<__half> sample = hostCorrectedData[outputChannel][timeMajor][receiver][polarization][timeMinor];
+
+              if (sample != std::complex<__half>(0.0f) && dumpCount < maxDumps) {
+                float real = __half2float(sample.real());
+                float imag = __half2float(sample.imag());
+                float phase = std::atan2(imag, real);
+                float magnitude = std::sqrt(real*real + imag*imag);
+                
+                std::cout << "COR[" << outputChannel << "][" << timeMajor
+                  << "][" << receiver << "][" << polarization
+                  << "][" << timeMinor << "] = ("
+                  << real << "," << imag << ") phase=" << phase 
+                  << " mag=" << magnitude << "\n";
+                dumpCount++;
+              }
+            }
+
+    std::cout << "=== Dumped " << dumpCount << " samples ===\n";
+
+    exit(0);
+#endif
 
     cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedDataChannel0skipped, pipeline.correlateCounter);
