@@ -40,7 +40,6 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
 #endif
     ("nrRingBufferSamplesPerSubband,T", value<unsigned>(&_nrRingBufferSamplesPerSubband))
     ("visibilitiesIntegration,I", value<unsigned>(&_visibilitiesIntegration))
-    ("channelMapping,M", value<std::vector<int>>(&_channelMapping)->multitoken())
   ;
 
 

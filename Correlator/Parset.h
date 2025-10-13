@@ -20,6 +20,7 @@ class CorrelatorParset : public Parset
 
     std::vector<double> delays() const { return _delays; }
     std::vector<double> centerFrequencies() const { return _centerFrequencies; }
+    std::vector<uint32_t> channelMapping() const { return _channelMapping; }
 
   protected:
     unsigned _correlationMode;
@@ -28,6 +29,7 @@ class CorrelatorParset : public Parset
 
     std::vector<double> _delays;
     std::vector<double> _centerFrequencies;
+    std::vector<uint32_t> _channelMapping;
 };
 
 #endif

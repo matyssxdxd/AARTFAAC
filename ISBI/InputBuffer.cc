@@ -20,6 +20,8 @@
 #undef FAKE_TIMES
 #undef USE_RECVMMSG
 
+#define ISBI_DELAYS
+
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
 
 
