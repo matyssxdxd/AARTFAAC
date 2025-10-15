@@ -67,10 +67,11 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
 #ifdef ISBI_DELAYS
     TimeStamp earlyStartTime   = startTime - nrHistorySamples - delay;
+    TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - delay;
 #else
     TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-#endif
     TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
+#endif
 
     unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();

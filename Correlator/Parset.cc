@@ -83,7 +83,6 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   if (config.gcount() != mapping_len * sizeof(uint32_t)) {
     throw Error("Failed to read channel mapping data from configuration file");
   }
-  _channelMapping = std::vector<uint32_t>({0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15});
 
   config.close();
   
@@ -93,7 +92,7 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   
   _delays = std::vector<double>(delays_1_len, 0);
   for (size_t i = 0; i < delays_1_len; i++) {
-    _delays[i] = delays_1[i] - delays_2[i];
+    _delays[i] = -(delays_1[i] - delays_2[i]);
   }
 
   if (throwExceptionOnUnmatchedParameter && toPassFurther.size() > 0)

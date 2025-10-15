@@ -61,6 +61,12 @@ int main(int argc, char **argv){
     }
     std::cout << std::endl;
 
+    std::cout << "mapping = ";
+    for (int i = 0; i < ps.channelMapping().size(); i++) {
+      std::cout << ps.channelMapping()[i] << " ";
+    }
+    std::cout << std::endl;
+
     ISBI_CorrelatorPipeline(ps).doWork();
       
     #if !defined CREATE_BACKTRACE_ON_EXCEPTION
