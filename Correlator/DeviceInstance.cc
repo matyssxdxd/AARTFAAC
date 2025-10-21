@@ -11,7 +11,8 @@
 #include <iostream>
 #include <cmath>
 
-#define ISBI_DELAYS
+#undef ISBI_DELAYS
+#undef ISBI_FIR
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)

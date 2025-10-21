@@ -40,6 +40,7 @@ class Parset
     const std::vector<double> &subbandFrequencies() const { return _subbandFrequencies; }
     double   subbandBandwidth() const { return _subbandBandwidth; }
     double   channelBandwidth() const { return subbandBandwidth() / nrChannelsPerSubband(); }
+    unsigned   sampleRate() const { return _sampleRate; }
     unsigned nrChannelsPerSubband() const { return _nrChannelsPerSubband; } 
     unsigned nrBitsPerSample() const { return _nrBitsPerSample; }
     unsigned nrBytesPerComplexSample() const { return 2 * _nrBitsPerSample / 8; }
@@ -95,6 +96,7 @@ class Parset
     unsigned _nrPolarizations;
     unsigned _clockSpeed;
     double   _subbandBandwidth;
+    unsigned   _sampleRate;
     unsigned _nrChannelsPerSubband;
     unsigned _nrBitsPerSample;
     unsigned _nrBeams;

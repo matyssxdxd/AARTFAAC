@@ -111,7 +111,6 @@ cpu_set_t Parset::allowedCPUs() const
 
 void Parset::handleSubbandsAndFrequencies()
 {
-  _subbandBandwidth = _clockSpeed;
 
   bool hasSubbandFrequencies = _subbandFrequencies.size() > 0, hasSubbandNumbers = _subbandNumbers.size() > 0;
 
@@ -140,8 +139,6 @@ void Parset::handleSubbandsAndFrequencies()
 
 Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
 :
-  //_subbandBandwidth(_clockSpeed / 1024.0),
-  _subbandBandwidth(_clockSpeed),
   _nrBeams(1)
 {
   _GPUs.push_back(0);
@@ -173,7 +170,8 @@ Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
     ("nrChannelsPerSubband,c", value<unsigned>(&_nrChannelsPerSubband)->default_value(64))
     ("delayCompensation,d", value<bool>(&_delayCompensation)->default_value(false))
     ("startTime,D", value<std::string>()->notifier([&providedStartTime] (std::string arg) { /* work-around for CodeXL that cannot pass white space */ std::replace(arg.begin(), arg.end(), '_', ' '); providedStartTime = arg; } ))
-    ("clockSpeed,f", value<unsigned>(&_clockSpeed)->default_value(200000000))
+    ("clockSpeed,f", value<unsigned>(&_clockSpeed)->default_value(16000000))
+    ("subbandBandwidth,fs", value<double>(&_subbandBandwidth)->default_value(8e6))
     ("subbandFrequencies,F", value<std::string>()->notifier([this] (const std::string &arg) { _subbandFrequencies = splitArgs<double>(arg); } ))
     ("GPUs,g", value<std::string>()->notifier([this] (const std::string &arg) { setGPUs(arg.c_str()); } ))
     ("nrStations,n", value<unsigned>(&_nrStations)->default_value(288))
@@ -200,8 +198,8 @@ Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');
 
    handleSubbandsAndFrequencies();
-  _startTime = providedStartTime != "" ? TimeStamp::fromDate(providedStartTime.c_str(), clockSpeed()) : TimeStamp::now(clockSpeed()) + 30 * subbandBandwidth();
-  _stopTime  = _startTime + runTime * subbandBandwidth();
+  _startTime = providedStartTime != "" ? TimeStamp::fromDate(providedStartTime.c_str(), clockSpeed()) : TimeStamp::now(clockSpeed()) + 30 * clockSpeed();
+  _stopTime  = _startTime + runTime * clockSpeed();
 }
 
 

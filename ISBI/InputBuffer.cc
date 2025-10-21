@@ -20,7 +20,7 @@
 #undef FAKE_TIMES
 #undef USE_RECVMMSG
 
-#define ISBI_DELAYS
+#undef ISBI_DELAYS
 
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
 
@@ -403,10 +403,11 @@ void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
 #ifdef ISBI_DELAYS
   TimeStamp earlyStartTime   = startTime - nrHistorySamples - ps.maxDelay();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - ps.maxDelay();
 #else
   TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-#endif
   TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
+#endif
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
 }

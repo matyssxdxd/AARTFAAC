@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-#define ISBI_DELAYS
+#undef ISBI_DELAYS
 
 InputSection::InputSection(const ISBI_Parset &ps)
 :
@@ -60,7 +60,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 #ifdef ISBI_DELAYS
     int delay = 0;
     if (station == 1) {
-      double delayInSamples = ps.delays()[delayIndex] * ps.subbandBandwidth();
+      double delayInSamples = ps.delays()[delayIndex] * ps.sampleRate();
       delay = static_cast<int>(std::floor(delayInSamples + .5));
     }
 #endif
