@@ -9,8 +9,6 @@
 #include <vector>
 #include <ctime>
 
-// Temporary until cross-correlations are fixed, can be read from VDIF file and/or Parset.
-constexpr int SAMPLE_RATE = 16000000;
 
 static constexpr int16_t DECODER_LEVEL_2BIT[] = { -3, -1, 1, 3 };
 
@@ -34,7 +32,7 @@ struct VDIFHeader {
   uint32_t      user_data2,user_data3,user_data4;
 
   
-  int64_t timestamp() const;
+  int64_t timestamp(double sample_rate) const;
   int32_t dataSize() const;
   int32_t samplesPerFrame() const;
   int32_t numberOfChannels() const;

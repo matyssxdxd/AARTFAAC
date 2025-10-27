@@ -56,6 +56,10 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
   uint32_t delayIndex = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
 #endif
 
+#if 0
+  std::cout << "Subband: " << subband << std::endl;
+#endif
+
   for (unsigned station = 0; station < ps.nrStations(); station++) {
 #ifdef ISBI_DELAYS
     int delay = 0;
@@ -76,7 +80,14 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
 
-    size_t nrBytesPerTime = ps.nrBytesPerRealSample();
+    size_t nrBytesPerTime = ps.nrBytesPerRealSample(); 
+
+#if 0
+    std::cout << "Station: " << station << std::endl;
+    std::cout << "Start time: " << startTime << " endTime: " << endTime << std::endl;
+    std::cout << "StartTimeIndex: " << startTimeIndex << " endTimeIndex: " << endTimeIndex << std::endl;
+    std::cout << "EarlyStartTime: " << earlyStartTime << std::endl;
+#endif
 
     {
       PerformanceCounter::Measurement measurement(counter, stream, 0, 0, (endTime - earlyStartTime) * nrBytesPerTime);
@@ -96,6 +107,11 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
         } else {
           secondPart = n - firstPart;
         }
+
+#if 0
+        std::cout << "Station: " << station << "Pol: " << pol << " offset: " << offset << std::endl;
+        std::cout << "First part: " << firstPart << " secondPart: " << secondPart << std::endl;
+#endif
 
         assert(firstPart + secondPart == n);
 

@@ -24,7 +24,7 @@ std::vector<std::string> AARTFAAC_Parset::getDescriptors(const std::string &arg)
 ISBI_Parset::ISBI_Parset(int argc, char **argv)
 :
   CorrelatorParset(argc, argv, false),
-  _nrRingBufferSamplesPerSubband(128000000),
+  _nrRingBufferSamplesPerSubband(128007680),
   _visibilitiesIntegration(1)
 {
   using namespace boost::program_options;

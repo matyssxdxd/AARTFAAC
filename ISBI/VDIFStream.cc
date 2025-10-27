@@ -10,7 +10,7 @@
 #include <cstring>
 
 
-int64_t VDIFHeader::timestamp() const {
+int64_t VDIFHeader::timestamp(double sample_rate) const {
     std::tm date{};
     date.tm_year = 2000 + ref_epoch / 2 - 1900;
     date.tm_mon = (ref_epoch & 1) ? 6 : 0;
@@ -23,7 +23,7 @@ int64_t VDIFHeader::timestamp() const {
     auto time_point = std::chrono::system_clock::from_time_t(time);
 
     auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
-    return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * SAMPLE_RATE
+    return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * sample_rate 
            + dataframe_in_second * samplesPerFrame();
 }
 
@@ -86,7 +86,6 @@ VDIFStream::VDIFStream(std::string inputFile)
     _payloadBytes = static_cast<std::size_t>(firstHeader.dataSize());
     _totalBytes = _headerBytes + _payloadBytes;
 }
-
 
 bool VDIFStream::readFirstHeader() {
   while (file) {

@@ -139,6 +139,7 @@ void Parset::handleSubbandsAndFrequencies()
 
 Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
 :
+  _sampleRate(_clockSpeed),
   _nrBeams(1)
 {
   _GPUs.push_back(0);
@@ -197,7 +198,8 @@ Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
   if (throwExceptionOnUnmatchedParameter && toPassFurther.size() > 0)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');
 
-   handleSubbandsAndFrequencies();
+  handleSubbandsAndFrequencies();
+  _sampleRate = static_cast<double>(_clockSpeed); 
   _startTime = providedStartTime != "" ? TimeStamp::fromDate(providedStartTime.c_str(), clockSpeed()) : TimeStamp::now(clockSpeed()) + 30 * clockSpeed();
   _stopTime  = _startTime + runTime * clockSpeed();
 }

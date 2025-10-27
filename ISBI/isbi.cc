@@ -32,8 +32,21 @@ void printSettings(const ISBI_Parset &ps){
   std::clog << "correlator mode = " << ps.correlationMode() << std::endl;
   std::clog << "start time = " << ps.startTime() << std::endl;
   std::clog << "intended stop time = " << ps.stopTime() << std::endl;
-  std::clog << "bandpass correction = " << ps.correctBandPass() << std::endl;
-  std::clog << "delay compensation = " << ps.delayCompensation() << std::endl;
+  std::clog << "sample rate = " << ps.sampleRate() << std::endl;
+  std::clog << "subband bandwidth = " << ps.subbandBandwidth() << std::endl;
+  std::clog << "delays = " << ps.delayCompensation();
+  for (int i = 0; i < ps.delays().size(); i++)
+    std::clog << ps.delays()[i] << " ";
+  std::clog << std::endl;
+  std::clog << "mapping = ";
+  for (int i = 0; i < ps.channelMapping().size(); i++)
+    std::clog << ps.channelMapping()[i] << " ";
+  std::clog << std::endl;
+  std::clog<< "center frequencies = ";
+  for (int i = 0; i < ps.centerFrequencies().size(); i++)
+    std::clog << ps.centerFrequencies()[i] << " ";
+  std::clog << std::endl;
+  std::clog << ps.nrGPUs() << std::endl;
 }
 
 
@@ -53,19 +66,6 @@ int main(int argc, char **argv){
     printArgv(argc, argv);
     ISBI_Parset ps(argc, argv);
     printSettings(ps);
-
-    std::cout << "delays = ";
-
-    for (int i = 0; i < ps.delays().size(); i++) {
-      std::cout << ps.delays()[i] << " ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "mapping = ";
-    for (int i = 0; i < ps.channelMapping().size(); i++) {
-      std::cout << ps.channelMapping()[i] << " ";
-    }
-    std::cout << std::endl;
 
     ISBI_CorrelatorPipeline(ps).doWork();
       

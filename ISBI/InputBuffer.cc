@@ -21,6 +21,7 @@
 #undef USE_RECVMMSG
 
 #undef ISBI_DELAYS
+#undef INPUT_BUFFER_TEST
 
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
 
@@ -144,7 +145,7 @@ InputBuffer::~InputBuffer()
 void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPacketsInBuffer>& packetBuffer, unsigned firstPacket, unsigned lastPacket) {
   VDIFHeader header = {};
   std::memcpy(&header, packetBuffer[firstPacket].data(), sizeof(VDIFHeader));
-  TimeStamp beginTime{header.timestamp()};
+  TimeStamp beginTime{header.timestamp(ps.sampleRate())};
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
@@ -168,12 +169,25 @@ void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPa
         for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
           for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
             unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
-            size_t dataIndex = sample * ps.nrSubbands() * ps.nrPolarizations() + mappedIndex;
+            size_t dataIndex = sample * packetHeader.numberOfChannels() + mappedIndex;
             *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = decoded[dataIndex]; 
           }
         }
         if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
       }
+
+#ifdef INPUT_BUFFER_TEST
+      if (packet == firstPacket && myFirstStation == 0) {
+        for (unsigned subband = 0; subband < ps.nrSubbands(); subband++) {
+          std::cout << "Subband: " << subband << std::endl;
+          for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
+            int16_t value = *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex-1].origin());
+            std::cout << value << " ";
+          }
+          std::cout << std::endl;
+        }
+      }
+#endif
     }
 
     {
@@ -213,7 +227,7 @@ void InputBuffer::inputThreadBody() {
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
-  TimeStamp timeStamp(0, 1); 
+  TimeStamp timeStamp(0, ps.clockSpeed()); 
 
 #if defined USE_RECVMMSG
   struct iovec   iovecs[maxNrPacketsInBuffer];
@@ -249,7 +263,7 @@ void InputBuffer::inputThreadBody() {
     for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
       VDIFHeader header{};
       std::memcpy(&header, packetBuffer[nextPacket].data(), sizeof(VDIFHeader));
-      timeStamp = header.timestamp();
+      timeStamp = header.timestamp(ps.sampleRate());
       if (timeStamp != expectedTimeStamp) {
         if (firstPacket < nextPacket) {
           handleConsecutivePackets(packetBuffer, firstPacket, nextPacket);

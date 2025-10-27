@@ -141,7 +141,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     context.setCurrent();
     return TCC(device, ps);
   })),
-  
+
   devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
   
   filterOdd(filterOddFuture.get()),
@@ -303,12 +303,12 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
       float hostFracDelays[2][2];
 
-      double delayInSamples = ps.delays()[i] * ps.subbandBandwidth();
+      double delayInSamples = ps.delays()[i] * ps.sampleRate();
       int integerDelay = static_cast<int>(std::floor(delayInSamples + .5));
       float fractionalDelay = static_cast<float>(delayInSamples - integerDelay);
 
-      double delayInSamples_N = ps.delays()[i + 1] * ps.subbandBandwidth();
-      int integerDelay_N = static_cast<int>(std::floor(delayInSamples + .5));
+      double delayInSamples_N = ps.delays()[i + 1] * ps.sampleRate();
+      int integerDelay_N = static_cast<int>(std::floor(delayInSamples_N + .5));
       float dN = static_cast<float>(delayInSamples_N - integerDelay_N);
 
       // In this case the antenna 0 is chosen as a reference antenna
@@ -324,6 +324,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 #ifdef ISBI_DELAYS
     double subbandCenterFrequency = ps.centerFrequencies()[subband] * 1e6;
 #endif
+     
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
     hostToDeviceStream.record(inputTransferReady);
 
@@ -367,47 +368,33 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     executeStream.record(inputDataFree);
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
 
-#ifdef DEBUG_PHASE_DUMP
+#if 0
     unsigned nrTimesPerBlock = 128 / ps.nrBitsPerSample();
-    MultiArrayHostBuffer<std::complex<__half>, 5> hostCorrectedData(boost::extents[ps.nrOutputChannelsPerSubband()][ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock][ps.nrStations()][ps.nrPolarizations()][nrTimesPerBlock]);
+    MultiArrayHostBuffer<std::complex<half>, 5> hostCorrectedData(boost::extents[ps.nrOutputChannelsPerSubband()][ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock][ps.nrStations()][ps.nrPolarizations()][nrTimesPerBlock]);
     executeStream.memcpyDtoHAsync(hostCorrectedData.origin(), devCorrectedData, (size_t) ps.nrOutputChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     executeStream.synchronize();
 
-    std::cout << "=== Phase Dump: Time=" << time << ", Subband=" << subband << " ===\n";
-    
-    unsigned dumpCount = 0;
-    const unsigned maxDumps = 1000;
-
     for (unsigned outputChannel = 0; outputChannel < ps.nrOutputChannelsPerSubband(); outputChannel ++)
       for (unsigned timeMajor = 0; timeMajor < ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock; timeMajor ++)
-        for (unsigned receiver = 0; receiver < ps.nrStations(); receiver ++)
-          for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
-            for (unsigned timeMinor = 0; timeMinor < nrTimesPerBlock; timeMinor ++) {
-              std::complex<__half> sample = hostCorrectedData[outputChannel][timeMajor][receiver][polarization][timeMinor];
+	for (unsigned receiver = 0; receiver < ps.nrStations(); receiver ++)
+	  for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
+	    for (unsigned timeMinor = 0; timeMinor < nrTimesPerBlock; timeMinor ++) {
+	      std::complex<half> sample = hostCorrectedData[outputChannel][timeMajor][receiver][polarization][timeMinor];
 
-              if (sample != std::complex<__half>(0.0f) && dumpCount < maxDumps) {
-                float real = __half2float(sample.real());
-                float imag = __half2float(sample.imag());
-                float phase = std::atan2(imag, real);
-                float magnitude = std::sqrt(real*real + imag*imag);
-                
-                std::cout << "COR[" << outputChannel << "][" << timeMajor
-                  << "][" << receiver << "][" << polarization
-                  << "][" << timeMinor << "] = ("
-                  << real << "," << imag << ") phase=" << phase 
-                  << " mag=" << magnitude << "\n";
-                dumpCount++;
-              }
+              if (sample != std::complex<half>(0.0f))
+                std::cout << "COR[" << outputChannel << "][" << timeMajor << "][" << receiver
+                  << "][" << polarization << "][" << timeMinor << "] = ("
+                  << static_cast<float>(sample.real()) << ","
+                  << static_cast<float>(sample.imag()) << ")" << std::endl;
             }
-
-    std::cout << "=== Dumped " << dumpCount << " samples ===\n";
 
     exit(0);
 #endif
 
     cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedDataChannel0skipped, pipeline.correlateCounter);
-    
+
+    executeStream.record(inputDataFree);
     executeStream.record(computeReady);
     deviceToHostStream.wait(computeReady);
 
