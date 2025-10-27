@@ -9,7 +9,6 @@
 #include <omp.h>
 
 #include <iostream>
-#include <cmath>
 
 #undef ISBI_DELAYS
 #undef ISBI_FIR
@@ -141,9 +140,18 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     context.setCurrent();
     return TCC(device, ps);
   })),
+
+  transposeFuture(std::async([&] {
+    context.setCurrent();
+    nvrtc::Program program(std::string(&_binary_Correlator_Kernels_Transpose_cu_start, &_binary_Correlator_Kernels_Transpose_cu_end), "Correlator/Kernels/Transpose.cu");
+    return Module(device, program, ps);
+  })),
   
+  devTransposedInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerRealSample()),
   devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
   
+  transposeModule(transposeFuture.get()),
+  transposeKernel(ps, device, transposeModule),
   filterOdd(filterOddFuture.get()),
   filter(filterFuture.get()),
   tcc(tccFuture.get()),
@@ -338,33 +346,40 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
+    transposeKernel.launchAsync(executeStream,
+                                devTransposedInputBuffer,
+                                devInputBuffer,
+                                0,
+                                pipeline.transposeCounter);
+
+    executeStream.record(inputDataFree);
+
     if (((subband + 1) % 2) == 0) {
 #ifdef ISBI_DELAYS
       filter.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer,
-          devFracDelays,
-          subbandCenterFrequency);
+                         devCorrectedData,
+                         devTransposedInputBuffer,
+                         devFracDelays,
+                         subbandCenterFrequency);
 #else
       filter.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer);
+                         devCorrectedData,
+                         devTransposedInputBuffer);
 #endif
     } else {
 #ifdef ISBI_DELAYS
       filterOdd.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer,
-          devFracDelays,
-          subbandCenterFrequency);
+                            devCorrectedData,
+                            devTransposedInputBuffer,
+                            devFracDelays,
+                            subbandCenterFrequency);
 #else
       filterOdd.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer);
+                            devCorrectedData,
+                            devTransposedInputBuffer);
 #endif
     }
 
-    executeStream.record(inputDataFree);
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
 
 #ifdef DEBUG_PHASE_DUMP

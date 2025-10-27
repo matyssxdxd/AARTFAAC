@@ -9,7 +9,7 @@
 
 #if NR_BITS == 16
 typedef short2  InputSample;
-typedef __half2 OutputSample;
+typedef short2 OutputSample;
 #elif NR_BITS == 8
 typedef char2 InputSample, OutputSample;
 #else

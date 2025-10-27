@@ -169,7 +169,7 @@ void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPa
           for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
             unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
             size_t dataIndex = sample * ps.nrSubbands() * ps.nrPolarizations() + mappedIndex;
-            *reinterpret_cast<int16_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = decoded[dataIndex]; 
+            *reinterpret_cast<int16_t *>(hostRingBuffer[subband][timeIndex][myFirstStation][pol].origin()) = decoded[dataIndex]; 
           }
         }
         if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
