@@ -46,7 +46,7 @@ void printSettings(const ISBI_Parset &ps){
   for (int i = 0; i < ps.centerFrequencies().size(); i++)
     std::clog << ps.centerFrequencies()[i] << " ";
   std::clog << std::endl;
-  std::clog << ps.nrGPUs() << std::endl;
+  std::clog << ps.nrRingBufferSamplesPerSubband() << std::endl;
 }
 
 

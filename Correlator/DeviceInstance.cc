@@ -326,6 +326,39 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 #endif
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
+
+#if 1
+    uint32_t n = ps.nrSamplesPerSubbandBeforeFilter() + (NR_TAPS - 1) * ps.nrChannelsPerSubband();
+    size_t nrBytesPerTime = ps.nrBytesPerRealSample();
+
+    MultiArrayHostBuffer<char, 4> hostData(boost::extents
+        [ps.nrStations()]
+        [ps.nrPolarizations()]
+        [n]
+        [nrBytesPerTime]);
+
+    executeStream.memcpyDtoHAsync(hostData.origin(), devInputBuffer, 
+        (size_t) ps.nrStations() * ps.nrPolarizations() * n * nrBytesPerTime);
+    executeStream.synchronize();
+
+    std::cout << "[nrStations][nrPolarizations][sample]" << std::endl;
+
+    for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization++) {
+      for (unsigned sample = 0; sample < 10000; sample++) {
+
+        std::cout << "[" << 0 << "]["
+          << polarization << "][" << sample << "] = ("
+          << *reinterpret_cast<const int16_t*>(&hostData[0][polarization][sample][0]) << ")";
+
+        std::cout << " == [" << 1 << "]["
+          << polarization << "][" << sample << "] = ("
+          << *reinterpret_cast<const int16_t*>(&hostData[1][polarization][sample][0]) << ")" << std::endl;
+      }
+    }
+
+    exit(0);
+#endif
+
     hostToDeviceStream.record(inputTransferReady);
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
@@ -374,19 +407,26 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     executeStream.memcpyDtoHAsync(hostCorrectedData.origin(), devCorrectedData, (size_t) ps.nrOutputChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     executeStream.synchronize();
 
+    std::cout << "[outputChannel][timeMajor][receiver][polarization][timeMinor]" << std::endl;
+
     for (unsigned outputChannel = 0; outputChannel < ps.nrOutputChannelsPerSubband(); outputChannel ++)
       for (unsigned timeMajor = 0; timeMajor < ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock; timeMajor ++)
-	for (unsigned receiver = 0; receiver < ps.nrStations(); receiver ++)
-	  for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
-	    for (unsigned timeMinor = 0; timeMinor < nrTimesPerBlock; timeMinor ++) {
-	      std::complex<half> sample = hostCorrectedData[outputChannel][timeMajor][receiver][polarization][timeMinor];
+        // for (unsigned receiver = 0; receiver < ps.nrStations(); receiver ++)
+        for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
+          for (unsigned timeMinor = 0; timeMinor < nrTimesPerBlock; timeMinor ++) {
+            std::complex<half> sample_1 = hostCorrectedData[outputChannel][timeMajor][0][polarization][timeMinor];
+            std::complex<half> sample_2 = hostCorrectedData[outputChannel][timeMajor][1][polarization][timeMinor];
 
-              if (sample != std::complex<half>(0.0f))
-                std::cout << "COR[" << outputChannel << "][" << timeMajor << "][" << receiver
-                  << "][" << polarization << "][" << timeMinor << "] = ("
-                  << static_cast<float>(sample.real()) << ","
-                  << static_cast<float>(sample.imag()) << ")" << std::endl;
-            }
+              std::cout << "COR[" << outputChannel << "][" << timeMajor << "][" << 0 
+                << "][" << polarization << "][" << timeMinor << "] = ("
+                << static_cast<float>(sample_1.real()) << ","
+                << static_cast<float>(sample_1.imag()) << ")";
+
+              std::cout << "=== COR[" << outputChannel << "][" << timeMajor << "][" << 1 
+                << "][" << polarization << "][" << timeMinor << "] = ("
+                << static_cast<float>(sample_2.real()) << ","
+                << static_cast<float>(sample_2.imag()) << ")" << std::endl;
+          }
 
     exit(0);
 #endif
@@ -394,7 +434,6 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedDataChannel0skipped, pipeline.correlateCounter);
 
-    executeStream.record(inputDataFree);
     executeStream.record(computeReady);
     deviceToHostStream.wait(computeReady);
 

@@ -48,6 +48,15 @@ InputSection::~InputSection()
 
 void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory &devBuffer, PerformanceCounter &counter, const TimeStamp &startTime, unsigned subband) {
 
+#if 0
+  for (int pol = 0; pol < ps.nrPolarizations(); pol++) {
+    for (int sample = 0; sample < 250; sample++) {
+      std::cout << "[" << subband << "][0-1][" << pol << "][" << sample << "]" << std::endl;
+      std::cout << *reinterpret_cast<int16_t*>(hostRingBuffers[subband][0][pol][sample].origin()) << "==" << *reinterpret_cast<int16_t*>(hostRingBuffers[subband][1][pol][sample].origin()) << std::endl;
+    }
+  }
+#endif
+
 #ifdef ISBI_DELAYS
   uint32_t blockSize = ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
   uint64_t timeOffset = startTime - ps.startTime();
