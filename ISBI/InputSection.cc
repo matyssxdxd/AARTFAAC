@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-#undef ISBI_DELAYS
+#define ISBI_DELAYS
 
 InputSection::InputSection(const ISBI_Parset &ps)
 :
@@ -77,8 +77,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
       delay = static_cast<int>(std::floor(delayInSamples + .5));
     }
 #endif
-    // unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
-    unsigned nrHistorySamples = 0;
+    unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2;
 #ifdef ISBI_DELAYS
     TimeStamp earlyStartTime   = startTime - nrHistorySamples - delay;
     TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - delay;
@@ -121,7 +120,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
           secondPart = n - firstPart;
         }
 
-#if 1 
+#if 0 
         std::cout << "n = " << n << std::endl;
         std::cout << "nrBytesPerTime = " << nrBytesPerTime << std::endl;
         std::cout << "Station " << station << " Pol " << pol << " offset = " << offset << std::endl;

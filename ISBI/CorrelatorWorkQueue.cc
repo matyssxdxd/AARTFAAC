@@ -79,8 +79,7 @@ void CorrelatorWorkQueue::doSubband(const TimeStamp &time, unsigned subband)
       pipeline.inputSection.enqueueHostToDeviceCopy(stream, devInputBuffer, counter, time, subband);
     };
 
-    // unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
-    unsigned nrHistorySamples = 0;
+    unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2;
     unsigned startIndex = (time - nrHistorySamples) % ps.nrRingBufferSamplesPerSubband();
     deviceInstance.doSubband(time, subband, enqueueCopyInputBuffer, pipeline.inputSection.hostRingBuffers[subband], hostDelays, hostDelays, visibilities->hostVisibilities, startIndex);
 

@@ -20,7 +20,7 @@
 #undef FAKE_TIMES
 #undef USE_RECVMMSG
 
-#undef ISBI_DELAYS
+#define ISBI_DELAYS
 #undef INPUT_BUFFER_TEST
 
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
@@ -110,8 +110,7 @@ InputBuffer::InputBuffer(const ISBI_Parset &ps, MultiArrayHostBuffer<char, 4> ho
   nrRingBufferSamplesPerSubband(ps.nrRingBufferSamplesPerSubband()),
   hostRingBuffer(hostRingBuffer),
   nrTimesPerPacket(nrTimesPerPacket),
-  // nrHistorySamples((NR_TAPS - 1) * ps.nrChannelsPerSubband()),
-  nrHistorySamples(0),
+   nrHistorySamples((NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2),
   latestWriteTime(0, ps.clockSpeed()),
   stop(false),
   readerAndWriterSynchronization(nrRingBufferSamplesPerSubband, ps.startTime() - nrHistorySamples - 20),
