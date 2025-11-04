@@ -56,7 +56,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     filterOddArgs.nrPolarizations = ps.nrPolarizations();
 
     filterOddArgs.input = tcc::FilterArgs::Input {
-      .sampleFormat = tcc::FilterArgs::Format::i16,
+      .sampleFormat = tcc::FilterArgs::Format::i8,
       .isPurelyReal = true
     };
 
@@ -101,7 +101,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     filterArgs.nrPolarizations = ps.nrPolarizations();
 
     filterArgs.input = tcc::FilterArgs::Input {
-	.sampleFormat = tcc::FilterArgs::Format::i16,
+	.sampleFormat = tcc::FilterArgs::Format::i8,
 	.isPurelyReal = true
     };
 
@@ -198,7 +198,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 DeviceInstanceWithoutUnifiedMemory::DeviceInstanceWithoutUnifiedMemory(CorrelatorPipeline &pipeline, unsigned deviceNr)
 :
   DeviceInstance(pipeline, deviceNr),
-  devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * ps.nrBytesPerRealSample()),
+  devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband() * ps.nrBytesPerRealSample()),
   devDelaysAtBegin(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
   devDelaysAfterEnd(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
   devFracDelays(sizeof(float) * 2 * 2),
@@ -327,7 +327,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 
-#if 1
+#if 0
     uint32_t n = ps.nrSamplesPerSubbandBeforeFilter() + (NR_TAPS - 1) * ps.nrChannelsPerSubband();
     size_t nrBytesPerTime = ps.nrBytesPerRealSample();
 
@@ -341,22 +341,16 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
         (size_t) ps.nrStations() * ps.nrPolarizations() * n * nrBytesPerTime);
     executeStream.synchronize();
 
-    std::cout << "[nrStations][nrPolarizations][sample]" << std::endl;
-
     for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization++) {
-      for (unsigned sample = 0; sample < 10000; sample++) {
+      for (unsigned sample = 0; sample < n; sample++) {
+        int32_t station_0 = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(&hostData[0][polarization][sample][0]));
+        int32_t station_1 = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(&hostData[1][polarization][sample][0]));
 
-        std::cout << "[" << 0 << "]["
-          << polarization << "][" << sample << "] = ("
-          << *reinterpret_cast<const int16_t*>(&hostData[0][polarization][sample][0]) << ")";
+        if (station_0 != station_1)
+          std::cout << "Polarization: " << polarization << " Sample: " << sample << " Station_0: " << station_0 << " Station_1: " << station_1 << std::endl;
 
-        std::cout << " == [" << 1 << "]["
-          << polarization << "][" << sample << "] = ("
-          << *reinterpret_cast<const int16_t*>(&hostData[1][polarization][sample][0]) << ")" << std::endl;
       }
     }
-
-    exit(0);
 #endif
 
     hostToDeviceStream.record(inputTransferReady);
@@ -371,6 +365,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     //pipeline.samplesCounter.doOperation(inputTransferReady[0], 0, 0, bytesSent);
 
     executeStream.wait(inputTransferReady);
+
 
     if (((subband + 1) % 2) == 0) {
 #ifdef ISBI_DELAYS
@@ -410,7 +405,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     std::cout << "[outputChannel][timeMajor][receiver][polarization][timeMinor]" << std::endl;
 
     for (unsigned outputChannel = 0; outputChannel < ps.nrOutputChannelsPerSubband(); outputChannel ++)
-      for (unsigned timeMajor = 0; timeMajor < ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock; timeMajor ++)
+      for (unsigned timeMajor = 0; timeMajor < 500; timeMajor ++)
         // for (unsigned receiver = 0; receiver < ps.nrStations(); receiver ++)
         for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
           for (unsigned timeMinor = 0; timeMinor < nrTimesPerBlock; timeMinor ++) {

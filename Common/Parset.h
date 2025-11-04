@@ -44,7 +44,8 @@ class Parset
     unsigned nrChannelsPerSubband() const { return _nrChannelsPerSubband; } 
     unsigned nrBitsPerSample() const { return _nrBitsPerSample; }
     unsigned nrBytesPerComplexSample() const { return 2 * _nrBitsPerSample / 8; }
-    unsigned nrBytesPerRealSample() const { return _nrBitsPerSample / 8; }
+    // unsigned nrBytesPerRealSample() const { return _nrBitsPerSample / 8; }
+    unsigned nrBytesPerRealSample() const { return 1; }
     unsigned nrBeams() const { return _nrBeams; }
     unsigned nrSamplesPerChannelAfterFilter() const { return _nrSamplesPerChannel; }
     unsigned nrSamplesPerChannelBeforeFilter() const { return 2 * _nrSamplesPerChannel; }

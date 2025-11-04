@@ -77,7 +77,8 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
       delay = static_cast<int>(std::floor(delayInSamples + .5));
     }
 #endif
-    unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
+    // unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband();
+    unsigned nrHistorySamples = 0;
 #ifdef ISBI_DELAYS
     TimeStamp earlyStartTime   = startTime - nrHistorySamples - delay;
     TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - delay;
@@ -88,6 +89,9 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
 
     unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
+
+    std::cout << startTimeIndex << std::endl;
+    std::cout << endTimeIndex << std::endl;
 
     size_t nrBytesPerTime = ps.nrBytesPerRealSample(); 
 
@@ -117,9 +121,16 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
           secondPart = n - firstPart;
         }
 
-#if 0
-        std::cout << "Station: " << station << "Pol: " << pol << " offset: " << offset << std::endl;
+#if 1 
+        std::cout << "n = " << n << std::endl;
+        std::cout << "nrBytesPerTime = " << nrBytesPerTime << std::endl;
+        std::cout << "Station " << station << " Pol " << pol << " offset = " << offset << std::endl;
         std::cout << "First part: " << firstPart << " secondPart: " << secondPart << std::endl;
+        std::cout << "nrSamplesPerSubbandBeforeFilter = " << ps.nrSamplesPerSubbandBeforeFilter() << std::endl;
+        std::cout << "nrHistorySamples = " << nrHistorySamples << std::endl;
+        int32_t expected = 124800 * 256;
+        std::cout << "Filter expects: " << expected << std::endl;
+        std::cout << "Sent - expected: " << n - expected << std::endl;
 #endif
 
         assert(firstPart + secondPart == n);

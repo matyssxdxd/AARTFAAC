@@ -41,7 +41,7 @@ int32_t VDIFHeader::samplesPerFrame() const {
   return dataSize() * 8 / bps / numberOfChannels();
 }
 
-void VDIFHeader::decode2bit(const std::vector<char>& frame, std::vector<int16_t>& out) const {
+void VDIFHeader::decode2bit(const std::vector<char>& frame, std::vector<int8_t>& out) const {
     const std::size_t headerBytes = sizeof(VDIFHeader);
     const std::size_t payloadBytes = static_cast<std::size_t>(dataSize());
     const std::size_t totalBytes   = headerBytes + payloadBytes;
