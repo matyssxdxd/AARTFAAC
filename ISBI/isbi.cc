@@ -34,7 +34,7 @@ void printSettings(const ISBI_Parset &ps){
   std::clog << "intended stop time = " << ps.stopTime() << std::endl;
   std::clog << "sample rate = " << ps.sampleRate() << std::endl;
   std::clog << "subband bandwidth = " << ps.subbandBandwidth() << std::endl;
-  std::clog << "delays = " << ps.delayCompensation();
+  std::clog << "delays values = ";
   for (int i = 0; i < ps.delays().size(); i++)
     std::clog << ps.delays()[i] << " ";
   std::clog << std::endl;
@@ -46,7 +46,6 @@ void printSettings(const ISBI_Parset &ps){
   for (int i = 0; i < ps.centerFrequencies().size(); i++)
     std::clog << ps.centerFrequencies()[i] << " ";
   std::clog << std::endl;
-  std::clog << ps.nrRingBufferSamplesPerSubband() << std::endl;
 }
 
 

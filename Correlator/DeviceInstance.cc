@@ -11,8 +11,7 @@
 #include <iostream>
 #include <cmath>
 
-#undef ISBI_DELAYS
-#define ISBI_FIR
+#define ISBI_DELAYS
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
@@ -60,14 +59,10 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
       .isPurelyReal = true
     };
 
-#ifdef ISBI_FIR
     filterOddArgs.firFilter = tcc::FilterArgs::FIR_Filter {
       .nrTaps = 16,
       .sampleFormat = tcc::FilterArgs::Format::fp32
     };
-#else
-    filterOddArgs.firFilter = std::nullopt;
-#endif
 
     filterOddArgs.fft = tcc::FilterArgs::FFT {
       .sampleFormat = tcc::FilterArgs::Format::fp32,
@@ -105,14 +100,10 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 	.isPurelyReal = true
     };
 
-#ifdef ISBI_FIR
     filterArgs.firFilter = tcc::FilterArgs::FIR_Filter {
     	.nrTaps = 16,
         .sampleFormat = tcc::FilterArgs::Format::fp32
     };
-#else
-    filterArgs.firFilter = std::nullopt;
-#endif
 
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
@@ -318,6 +309,14 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       hostFracDelays[0][1] = 0;
 
       hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
+
+      std::cout << "DeviceInstance: i=" << i
+        << " delay_seconds=" << ps.delays()[i]
+        << " delay_samples=" << delayInSamples
+        << " integer_delay=" << integerDelay
+        << " fractionalDelay=" << fractionalDelay
+        << " dN=" << dN
+        << " time=" << time << std::endl;
 #endif
     }
 

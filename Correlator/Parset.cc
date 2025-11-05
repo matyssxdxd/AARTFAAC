@@ -89,10 +89,17 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   if (delays_1_len != delays_2_len) {
     throw Error("delays_1 and delays_2 must have the same length");
   }
-  
+
+  static const double CLOCK_OFFSET_IR = 8.233828125e-6;
+  static const double CLOCK_OFFSET_IB = 8.114e-6;
+
   _delays = std::vector<double>(delays_1_len, 0);
   for (size_t i = 0; i < delays_1_len; i++) {
-    _delays[i] = -(delays_1[i] - delays_2[i]);
+    double geometricDelay = delays_1[i] - delays_2[i];
+
+    double clockCorrection = CLOCK_OFFSET_IR - CLOCK_OFFSET_IB;
+
+    _delays[i] = geometricDelay - clockCorrection;
   }
 
   if (throwExceptionOnUnmatchedParameter && toPassFurther.size() > 0)

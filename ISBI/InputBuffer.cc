@@ -21,7 +21,6 @@
 #undef USE_RECVMMSG
 
 #define ISBI_DELAYS
-#undef INPUT_BUFFER_TEST
 
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
 
@@ -175,19 +174,6 @@ void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPa
         }
         if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
       }
-
-#ifdef INPUT_BUFFER_TEST
-      if (packet == firstPacket && myFirstStation == 0) {
-        for (unsigned subband = 0; subband < ps.nrSubbands(); subband++) {
-          std::cout << "Subband: " << subband << std::endl;
-          for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
-            int8_t value = *reinterpret_cast<int8_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex-1].origin());
-            std::cout << value << " ";
-          }
-          std::cout << std::endl;
-        }
-      }
-#endif
     }
 
     {
@@ -416,8 +402,8 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
 #ifdef ISBI_DELAYS
-  TimeStamp earlyStartTime   = startTime - nrHistorySamples - ps.maxDelay();
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - ps.maxDelay();
+  TimeStamp earlyStartTime   = startTime - nrHistorySamples + ps.maxDelay();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() + ps.maxDelay();
 #else
   TimeStamp earlyStartTime   = startTime - nrHistorySamples;
   TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
