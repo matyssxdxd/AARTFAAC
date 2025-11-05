@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-#define ISBI_DELAYS
+#undef ISBI_DELAYS
 
 InputSection::InputSection(const ISBI_Parset &ps)
 :
@@ -61,11 +61,6 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     if (station == 1) {
       double delayInSamples = ps.delays()[delayIndex] * ps.sampleRate();
       delay = static_cast<int>(std::floor(delayInSamples + 0.5));
-      std::cout << "InputSection: delayIndex=" << delayIndex 
-        << " delay_seconds=" << ps.delays()[delayIndex]
-        << " delay_samples=" << delayInSamples
-        << " integer_delay=" << delay
-        << " startTime=" << startTime << std::endl;
     }
 #endif
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2;
@@ -80,8 +75,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
 
-    size_t nrBytesPerTime = ps.nrBytesPerRealSample(); 
-
+    unsigned nrBytesPerTime = ps.nrBytesPerRealSample();
 
     {
       PerformanceCounter::Measurement measurement(counter, stream, 0, 0, (endTime - earlyStartTime) * nrBytesPerTime);

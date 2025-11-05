@@ -63,7 +63,7 @@ void CorrelatorWorkQueue::computeWeights(const std::vector<SparseSet<TimeStamp> 
 {
   for (unsigned stat2 = 0, pair = 0; stat2 < validData.size(); stat2 ++)
     for (unsigned stat1 = 0; stat1 <= stat2 && pair < sizeof(visibilities->header.weights) / sizeof(visibilities->header.weights[0]); stat1 ++, pair ++)
-      visibilities->header.weights[pair] = ((uint32_t) (int64_t) (validData[stat1] & validData[stat2]).count() / ps.nrChannelsPerSubband() - (NR_TAPS - 1)) * ps.channelIntegrationFactor();
+      visibilities->header.weights[pair] = ((uint32_t) (int64_t) (validData[stat1] & validData[stat2]).count() / (ps.nrChannelsPerSubband() * 2) - (NR_TAPS - 1)) * ps.channelIntegrationFactor();
 }
 
 

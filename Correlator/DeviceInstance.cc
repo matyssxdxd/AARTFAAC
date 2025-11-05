@@ -11,7 +11,7 @@
 #include <iostream>
 #include <cmath>
 
-#define ISBI_DELAYS
+#undef ISBI_DELAYS
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
@@ -309,14 +309,6 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       hostFracDelays[0][1] = 0;
 
       hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
-
-      std::cout << "DeviceInstance: i=" << i
-        << " delay_seconds=" << ps.delays()[i]
-        << " delay_samples=" << delayInSamples
-        << " integer_delay=" << integerDelay
-        << " fractionalDelay=" << fractionalDelay
-        << " dN=" << dN
-        << " time=" << time << std::endl;
 #endif
     }
 

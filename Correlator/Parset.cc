@@ -99,7 +99,7 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
 
     double clockCorrection = CLOCK_OFFSET_IR - CLOCK_OFFSET_IB;
 
-    _delays[i] = geometricDelay - clockCorrection;
+    _delays[i] = geometricDelay; // - clockCorrection;
   }
 
   if (throwExceptionOnUnmatchedParameter && toPassFurther.size() > 0)
