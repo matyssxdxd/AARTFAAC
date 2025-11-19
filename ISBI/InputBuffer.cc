@@ -141,10 +141,9 @@ InputBuffer::~InputBuffer()
 }
 
 
-void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPacketsInBuffer>& packetBuffer, unsigned firstPacket, unsigned lastPacket) {
-  VDIFHeader header = {};
-  std::memcpy(&header, packetBuffer[firstPacket].data(), sizeof(VDIFHeader));
-  TimeStamp beginTime{header.timestamp(ps.sampleRate())};
+void InputBuffer::handleConsecutivePackets(std::array<std::array<char, maxPacketSize>, maxNrPacketsInBuffer>& packetBuffer, unsigned firstPacket, unsigned lastPacket) {
+  const VDIFHeader* header = reinterpret_cast<const VDIFHeader*>(packetBuffer[firstPacket].data());
+  TimeStamp beginTime{header->timestamp(ps.sampleRate())};
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
@@ -157,19 +156,22 @@ void InputBuffer::handleConsecutivePackets(std::array<std::vector<char>, maxNrPa
 
     readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
+    static thread_local std::vector<int8_t> decoded;
+    decoded.reserve(header->samplesPerFrame() * header->numberOfChannels());
+
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
-      VDIFHeader packetHeader = {};
-      std::memcpy(&packetHeader, packetBuffer[packet].data(), sizeof(VDIFHeader));
-      std::vector<int8_t> decoded;
-      decoded.resize(packetHeader.samplesPerFrame() * packetHeader.numberOfChannels());
-      packetHeader.decode2bit(packetBuffer[packet], decoded);
+      const VDIFHeader* packetHeader = reinterpret_cast<const VDIFHeader*>(packetBuffer[packet].data());
+      decoded.resize(packetHeader->samplesPerFrame() * packetHeader->numberOfChannels());
+      packetHeader->decode2bit(packetBuffer[packet], decoded);
 
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
         for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
           for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
             unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
-            size_t dataIndex = sample * packetHeader.numberOfChannels() + mappedIndex;
-            *reinterpret_cast<int8_t *>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin()) = decoded[dataIndex]; 
+            size_t dataIndex = sample * packetHeader->numberOfChannels() + mappedIndex;
+
+            int8_t* dest = reinterpret_cast<int8_t*>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin());
+            *dest = decoded[dataIndex];
           }
         }
         if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
@@ -209,7 +211,7 @@ void InputBuffer::inputThreadBody() {
   std::cout << "Station " << myFirstStation << std::endl;
   std::cout << vdifStream.firstHeader << std::endl;
 
-  std::array<std::vector<char>, maxNrPacketsInBuffer> packetBuffer;
+  alignas(16) std::array<std::array<char, maxPacketSize>, maxNrPacketsInBuffer> packetBuffer;
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
@@ -231,8 +233,7 @@ void InputBuffer::inputThreadBody() {
     //#if defined USE_RECVMMSG  
     try {
       for (nrPackets = 0; nrPackets < maxNrPacketsInBuffer; nrPackets ++) {
-        packetBuffer[nrPackets].resize(maxPacketSize);
-        vdifStream.read(packetBuffer[nrPackets]);
+        vdifStream.read(packetBuffer[nrPackets].data());
       }
     }
     catch (Stream::EndOfStreamException) {
@@ -247,9 +248,9 @@ void InputBuffer::inputThreadBody() {
        }*/
 
     for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
-      VDIFHeader header{};
-      std::memcpy(&header, packetBuffer[nextPacket].data(), sizeof(VDIFHeader));
-      timeStamp = header.timestamp(ps.sampleRate());
+      const VDIFHeader* header = reinterpret_cast<const VDIFHeader*>(packetBuffer[nextPacket].data());
+      timeStamp = header->timestamp(ps.sampleRate());
+
       if (timeStamp != expectedTimeStamp) {
         if (firstPacket < nextPacket) {
           handleConsecutivePackets(packetBuffer, firstPacket, nextPacket);

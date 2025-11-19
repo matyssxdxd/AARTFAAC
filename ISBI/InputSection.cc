@@ -6,7 +6,7 @@
 
 #include <fstream>
 
-#undef ISBI_DELAYS
+#define ISBI_DELAYS
 
 InputSection::InputSection(const ISBI_Parset &ps)
 :

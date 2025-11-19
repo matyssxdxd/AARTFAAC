@@ -11,7 +11,7 @@
 #include <iostream>
 #include <cmath>
 
-#undef ISBI_DELAYS
+#define ISBI_DELAYS
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
@@ -67,7 +67,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     filterOddArgs.fft = tcc::FilterArgs::FFT {
       .sampleFormat = tcc::FilterArgs::Format::fp32,
       .shift = false,
-      .mirror = true 
+      .mirror = false 
     };
 
 #ifdef ISBI_DELAYS

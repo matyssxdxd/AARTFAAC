@@ -11,6 +11,7 @@
 
 
 static constexpr int8_t DECODER_LEVEL_2BIT[] = { -3, -1, 1, 3 };
+static constexpr unsigned maxPacketSize = 8032;
 
 struct VDIFHeader {
   // Word 0
@@ -36,7 +37,7 @@ struct VDIFHeader {
   int32_t dataSize() const;
   int32_t samplesPerFrame() const;
   int32_t numberOfChannels() const;
-  void decode2bit(const std::vector<char>& frame, std::vector<int8_t>& out) const;
+  void decode2bit(const std::array<char, maxPacketSize>& frame, std::vector<int8_t>& out) const;
 
   friend std::ostream& operator<<(std::ostream& os, const VDIFHeader& header) {
     os << "----- VDIF HEADER -----" << std::endl;
@@ -80,9 +81,9 @@ class VDIFStream : public Stream {
     VDIFHeader firstHeader;
 
     bool readFirstHeader();
-    bool checkHeader(VDIFHeader& header);
-    void findNextValidHeader(VDIFHeader& header, off_t& offset); 
-    void read(std::vector<char>& frame);
+    bool checkHeader(const VDIFHeader& header);
+    void findNextValidHeader(); 
+    void read(char* frame);
 
     void printVDIFHeader(VDIFHeader header);
 

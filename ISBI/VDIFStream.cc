@@ -41,21 +41,16 @@ int32_t VDIFHeader::samplesPerFrame() const {
   return dataSize() * 8 / bps / numberOfChannels();
 }
 
-void VDIFHeader::decode2bit(const std::vector<char>& frame, std::vector<int8_t>& out) const {
+void VDIFHeader::decode2bit(const std::array<char, maxPacketSize>& frame, std::vector<int8_t>& out) const {
     const std::size_t headerBytes = sizeof(VDIFHeader);
     const std::size_t payloadBytes = static_cast<std::size_t>(dataSize());
-    const std::size_t totalBytes   = headerBytes + payloadBytes;
-
-    if (frame.size() < totalBytes) {
-        throw std::invalid_argument("decode2bit: frame too small for header + payload");
-    }
 
     const char* dataBuffer = frame.data() + headerBytes;
 
-    const unsigned nchan = static_cast<unsigned>(numberOfChannels());
-    const unsigned nsamp = static_cast<unsigned>(samplesPerFrame());
+    const unsigned nchan = numberOfChannels();
+    const unsigned nsamp = samplesPerFrame();
 
-    out.resize(static_cast<std::size_t>(nsamp) * nchan);
+    out.resize(nsamp * nchan);
 
     for (unsigned sample = 0; sample < nsamp; ++sample) {
         for (unsigned channel = 0; channel < nchan; ++channel) {
@@ -108,13 +103,13 @@ bool VDIFStream::readFirstHeader() {
       } else {
         std::memcpy(&firstHeader, &header, _headerBytes);
         return true;
-      }
+     }
     }
   }
   return false;
 }
 
-bool VDIFStream::checkHeader(VDIFHeader& header) {
+bool VDIFStream::checkHeader(const VDIFHeader& header) {
   if (header.legacy_mode != firstHeader.legacy_mode) return false;
   if (header.ref_epoch != firstHeader.ref_epoch) return false;
   if (header.dataframe_length != firstHeader.dataframe_length) return false;
@@ -126,46 +121,49 @@ bool VDIFStream::checkHeader(VDIFHeader& header) {
   return true;
 }
 
-void VDIFStream::findNextValidHeader(VDIFHeader& header, off_t& offset) {
-  while (!checkHeader(header)) {
+void VDIFStream::findNextValidHeader() {
+  while (true) {
     _numberOfFrames++;
-    offset = static_cast<off_t>(_numberOfFrames) * static_cast<off_t>(_totalBytes);
+    off_t offset = static_cast<off_t>(_numberOfFrames) * static_cast<off_t>(_totalBytes);
     file.seekg(offset, std::ios::beg);
-    
-    file.read(reinterpret_cast<char*>(&header), _headerBytes);
+
+    if (!file) {
+      throw EndOfStreamException("VDIFStream::findNextValidHeader: seek failed");
+    }
+
+    VDIFHeader header;
     if (file.gcount() != static_cast<std::streamsize>(_headerBytes)) {
-      throw EndOfStreamException("VDIFStream::findNextValidHeader: truncated header"); 
+      throw EndOfStreamException("VDIFStream::findNextValidHeader: truncated header");
+    }
+
+    if (checkHeader(header)) {
+      file.seekg(offset, std::ios::beg);
+      return;
     }
   }
 }
 
-void VDIFStream::read(std::vector<char>& frame) {
-  if (frame.size() != _totalBytes) { frame.resize(_totalBytes); }
-
+void VDIFStream::read(char* frame) {
   off_t offset = static_cast<off_t>(_numberOfFrames) * static_cast<off_t>(_totalBytes);
-
   file.seekg(offset, std::ios::beg);
-  if (!file) { throw EndOfStreamException("VDIFStream::read: seek failed"); }
 
-  VDIFHeader header{};
-  file.read(reinterpret_cast<char*>(&header), _headerBytes);
-  if (file.gcount() != static_cast<std::streamsize>(_headerBytes)) {
-    throw EndOfStreamException("VDIFStream::read: truncated header"); 
+  if (!file) {
+    throw EndOfStreamException("VDIFStream::read: seek failed");
   }
 
-  if (!checkHeader(header)) {
-    _invalidFrames++;
-    findNextValidHeader(header, offset);
+  file.read(frame, _totalBytes);
+  if (file.gcount() != static_cast<std::streamsize>(_totalBytes)) {
+    throw EndOfStreamException("VDIFStream::read: incomplete frame");
   }
 
-  std::memcpy(frame.data(), &header, _headerBytes);
+  const VDIFHeader* header = reinterpret_cast<const VDIFHeader*>(frame);
+  if (!checkHeader(*header)) {
+    findNextValidHeader();
 
-  file.seekg(offset + static_cast<std::streamoff>(_headerBytes), std::ios::beg);
-  if (!file) { throw EndOfStreamException("VDIFStream::read: seek to payload failed"); }
-
-  file.read(frame.data() + _headerBytes, static_cast<std::streamsize>(_payloadBytes));
-  if (file.gcount() != static_cast<std::streamsize>(_payloadBytes)) {
-    throw EndOfStreamException("VDIFStream::read: truncated payload");
+    file.read(frame, _totalBytes);
+    if (file.gcount() != static_cast<std::streamsize>(_totalBytes)) {
+      throw EndOfStreamException("VDIFStream::read: incomplete frame");
+    }
   }
 
   _numberOfFrames++;
