@@ -67,7 +67,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     filterOddArgs.fft = tcc::FilterArgs::FFT {
       .sampleFormat = tcc::FilterArgs::Format::fp32,
       .shift = false,
-      .mirror = false 
+      .mirror = true 
     };
 
 #ifdef ISBI_DELAYS
@@ -291,6 +291,8 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
       uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
       uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
+
+      std::cout << N << std::endl;
 
       float hostFracDelays[2][2];
 

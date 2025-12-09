@@ -171,7 +171,7 @@ Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
     ("nrChannelsPerSubband,c", value<unsigned>(&_nrChannelsPerSubband)->default_value(64))
     ("delayCompensation,d", value<bool>(&_delayCompensation)->default_value(false))
     ("startTime,D", value<std::string>()->notifier([&providedStartTime] (std::string arg) { /* work-around for CodeXL that cannot pass white space */ std::replace(arg.begin(), arg.end(), '_', ' '); providedStartTime = arg; } ))
-    ("clockSpeed,f", value<unsigned>(&_clockSpeed)->default_value(16000000))
+    ("clockSpeed,f", value<unsigned>(&_clockSpeed)->default_value(32000000))
     ("subbandBandwidth,fs", value<double>(&_subbandBandwidth)->default_value(8e6))
     ("subbandFrequencies,F", value<std::string>()->notifier([this] (const std::string &arg) { _subbandFrequencies = splitArgs<double>(arg); } ))
     ("GPUs,g", value<std::string>()->notifier([this] (const std::string &arg) { setGPUs(arg.c_str()); } ))
@@ -199,9 +199,9 @@ Parset::Parset(int argc, char **argv, bool throwExceptionOnUnmatchedParameter)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');
 
   handleSubbandsAndFrequencies();
-  _sampleRate = static_cast<double>(_clockSpeed); 
+  _sampleRate = static_cast<double>(clockSpeed()); 
   _startTime = providedStartTime != "" ? TimeStamp::fromDate(providedStartTime.c_str(), clockSpeed()) : TimeStamp::now(clockSpeed()) + 30 * clockSpeed();
-  _stopTime  = _startTime + runTime * clockSpeed();
+  _stopTime  = _startTime + static_cast<int64_t>(runTime) * clockSpeed();
 }
 
 

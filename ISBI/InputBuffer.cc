@@ -20,7 +20,7 @@
 #undef FAKE_TIMES
 #undef USE_RECVMMSG
 
-#undef ISBI_DELAYS
+#define ISBI_DELAYS
 
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
 
@@ -130,7 +130,7 @@ InputBuffer::InputBuffer(const ISBI_Parset &ps, MultiArrayHostBuffer<char, 4> ho
 
 InputBuffer::~InputBuffer()
 {
-  //readerAndWriterSynchronization.noMoreReading(); // FIXME: not here
+  readerAndWriterSynchronization.noMoreReading(); // FIXME: not here
   stop = true;
 
   if (noInputThreadPtr.get() != nullptr)
@@ -205,11 +205,8 @@ void InputBuffer::inputThreadBody() {
 
 #endif
 
-  VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation]); 
+  VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation], ps.sampleRate()); 
   assert(&vdifStream != nullptr);  
-
-  std::cout << "Station " << myFirstStation << std::endl;
-  std::cout << vdifStream.firstHeader << std::endl;
 
   alignas(16) std::array<std::array<char, maxPacketSize>, maxNrPacketsInBuffer> packetBuffer;
 
