@@ -298,6 +298,10 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       int integerDelay = static_cast<int>(std::floor(delayInSamples + .5));
       float fractionalDelay = static_cast<float>(delayInSamples - integerDelay);
 
+      std::cout << "delay_in_samples=" << delayInSamples << std::endl;
+      std::cout << "integer_delay=" << integerDelay << std::endl;
+      std::cout << "fractional_delay=" << fractionalDelay << std:endl;
+
       double delayInSamples_N = ps.delays()[i + 1] * ps.sampleRate();
       int integerDelay_N = static_cast<int>(std::floor(delayInSamples_N + .5));
       float dN = static_cast<float>(delayInSamples_N - integerDelay_N);
