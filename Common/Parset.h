@@ -42,15 +42,15 @@ class Parset
     double   channelBandwidth() const { return subbandBandwidth() / nrChannelsPerSubband(); }
     unsigned   sampleRate() const { return _sampleRate; }
     unsigned nrChannelsPerSubband() const { return _nrChannelsPerSubband; } 
+    unsigned nrChannelsPerSubbandBeforeFilter() const { return 2 * _nrChannelsPerSubband; } 
     unsigned nrBitsPerSample() const { return _nrBitsPerSample; }
     unsigned nrBytesPerComplexSample() const { return 2 * _nrBitsPerSample / 8; }
     // unsigned nrBytesPerRealSample() const { return _nrBitsPerSample / 8; }
     unsigned nrBytesPerRealSample() const { return 1; }
     unsigned nrBeams() const { return _nrBeams; }
-    unsigned nrSamplesPerChannelAfterFilter() const { return _nrSamplesPerChannel; }
-    unsigned nrSamplesPerChannelBeforeFilter() const { return 2 * _nrSamplesPerChannel; }
-    unsigned nrSamplesPerSubbandAfterFilter() const { return nrSamplesPerChannelAfterFilter() * nrChannelsPerSubband(); }
-    unsigned nrSamplesPerSubbandBeforeFilter() const { return nrSamplesPerChannelBeforeFilter() * nrChannelsPerSubband(); }
+    unsigned nrSamplesPerChannel() const { return _nrSamplesPerChannel; }
+    unsigned nrSamplesPerSubband() const { return nrSamplesPerChannel() * nrChannelsPerSubband(); }
+    unsigned nrSamplesPerSubbandBeforeFilter() const { return nrSamplesPerChannel() * nrChannelsPerSubbandBeforeFilter(); }
     TimeStamp startTime() const { return _startTime; };
     TimeStamp stopTime() const { return _stopTime; };
     bool     correctBandPass() const { return _correctBandPass; }

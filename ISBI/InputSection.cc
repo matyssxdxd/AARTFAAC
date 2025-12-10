@@ -48,7 +48,7 @@ InputSection::~InputSection()
 
 void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory &devBuffer, PerformanceCounter &counter, const TimeStamp &startTime, unsigned subband) {
 #ifdef ISBI_DELAYS
-  uint32_t blockSize = ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
+  uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
   uint64_t timeOffset = startTime - ps.startTime();
   uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
   uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
@@ -63,7 +63,7 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
       delay = static_cast<int>(std::floor(delayInSamples + 0.5));
     }
 #endif
-    unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2;
+    unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter();
 #ifdef ISBI_DELAYS
     TimeStamp earlyStartTime   = startTime - nrHistorySamples + delay;
     TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() + delay;

@@ -109,7 +109,7 @@ InputBuffer::InputBuffer(const ISBI_Parset &ps, MultiArrayHostBuffer<char, 4> ho
   nrRingBufferSamplesPerSubband(ps.nrRingBufferSamplesPerSubband()),
   hostRingBuffer(hostRingBuffer),
   nrTimesPerPacket(nrTimesPerPacket),
-   nrHistorySamples((NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2),
+  nrHistorySamples((NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter()),
   latestWriteTime(0, ps.clockSpeed()),
   stop(false),
   readerAndWriterSynchronization(nrRingBufferSamplesPerSubband, ps.startTime() - nrHistorySamples - 20),
@@ -388,7 +388,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
     }
   }
 
-  unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2;
+  unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter();
   unsigned nrSamples        = nrHistorySamples + ps.nrSamplesPerSubbandBeforeFilter();
 
   if (subband == 0)

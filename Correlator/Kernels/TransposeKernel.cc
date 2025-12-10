@@ -27,7 +27,7 @@ void TransposeKernel::launchAsync(cu::Stream &stream,
     parameters.push_back(&startIndex);
 
   stream.launchKernel(*this,
-		      (ps.nrStations() * ps.nrPolarizations() + 63) / 64, ((ps.nrSamplesPerChannelBeforeFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() + 63) / 64, 1,
+		      (ps.nrStations() * ps.nrPolarizations() + 63) / 64, ((ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter() + 63) / 64, 1,
                       32, 32, 1,
                       0, parameters);
 }

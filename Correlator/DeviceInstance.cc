@@ -51,7 +51,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     tcc::FilterArgs filterOddArgs;
     filterOddArgs.nrReceivers = ps.nrStations();
     filterOddArgs.nrChannels = ps.nrChannelsPerSubband();
-    filterOddArgs.nrSamplesPerChannel = ps.nrSamplesPerChannelAfterFilter();
+    filterOddArgs.nrSamplesPerChannel = ps.nrSamplesPerChannel();
     filterOddArgs.nrPolarizations = ps.nrPolarizations();
 
     filterOddArgs.input = tcc::FilterArgs::Input {
@@ -92,7 +92,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     tcc::FilterArgs filterArgs;
     filterArgs.nrReceivers = ps.nrStations();
     filterArgs.nrChannels = ps.nrChannelsPerSubband();
-    filterArgs.nrSamplesPerChannel = ps.nrSamplesPerChannelAfterFilter();
+    filterArgs.nrSamplesPerChannel = ps.nrSamplesPerChannel();
     filterArgs.nrPolarizations = ps.nrPolarizations();
 
     filterArgs.input = tcc::FilterArgs::Input {
@@ -133,7 +133,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     return TCC(device, ps);
   })),
 
-  devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
+  devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
   
   filterOdd(filterOddFuture.get()),
   filter(filterFuture.get()),
@@ -189,7 +189,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 DeviceInstanceWithoutUnifiedMemory::DeviceInstanceWithoutUnifiedMemory(CorrelatorPipeline &pipeline, unsigned deviceNr)
 :
   DeviceInstance(pipeline, deviceNr),
-  devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannelAfterFilter() + NR_TAPS - 1) * ps.nrChannelsPerSubband() * 2 * ps.nrBytesPerRealSample()),
+  devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter() * ps.nrBytesPerRealSample()),
   devDelaysAtBegin(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
   devDelaysAfterEnd(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
   devFracDelays(sizeof(float) * 2 * 2),
@@ -249,7 +249,7 @@ void DeviceInstance::doSubband(const TimeStamp &time,
 			 cu::DeviceMemory(hostInputBuffer));
 
     cu::DeviceMemory devVisibilities(hostVisibilities);
-    cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
+    cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     tcc.launchAsync(executeStream, devVisibilities, devCorrectedDataChannel0skipped, pipeline.correlateCounter);
   }
 
@@ -286,13 +286,11 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
     
 #ifdef ISBI_DELAYS
-      uint32_t blockSize = ps.nrSamplesPerChannelBeforeFilter() * ps.nrChannelsPerSubband();
+      uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
       uint64_t timeOffset = time - ps.startTime();
       uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
       uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
       uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
-
-      std::cout << N << std::endl;
 
       float hostFracDelays[2][2];
 
@@ -306,7 +304,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
       // In this case the antenna 0 is chosen as a reference antenna
       hostFracDelays[1][0] = fractionalDelay; 
-      hostFracDelays[1][1] = (dN - fractionalDelay) / ps.nrSamplesPerChannelBeforeFilter();
+      hostFracDelays[1][1] = (dN - fractionalDelay) / ps.nrSamplesPerChannel();
       hostFracDelays[0][0] = 0;
       hostFracDelays[0][1] = 0;
 
@@ -419,7 +417,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     exit(0);
 #endif
 
-    cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannelAfterFilter() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
+    cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedDataChannel0skipped, pipeline.correlateCounter);
 
     executeStream.record(computeReady);

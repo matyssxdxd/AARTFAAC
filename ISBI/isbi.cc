@@ -27,17 +27,14 @@ void printSettings(const ISBI_Parset &ps){
   std::clog << "#polarizations = " << ps.nrPolarizations() << std::endl;
   std::clog << "#intermediate channels/subband = " << ps.nrChannelsPerSubband() << std::endl;
   std::clog << "#output channels/subband = " << ps.nrOutputChannelsPerSubband() << std::endl;
-  std::clog << "#samples/channel = " << ps.nrSamplesPerChannelAfterFilter() << std::endl;
+  std::clog << "#samples/channel = " << ps.nrSamplesPerChannel() << std::endl;
   std::clog << "#bits/sample = " << ps.nrBitsPerSample() << std::endl;
   std::clog << "correlator mode = " << ps.correlationMode() << std::endl;
   std::clog << "start time = " << ps.startTime() << std::endl;
   std::clog << "intended stop time = " << ps.stopTime() << std::endl;
   std::clog << "sample rate = " << ps.sampleRate() << std::endl;
   std::clog << "subband bandwidth = " << ps.subbandBandwidth() << std::endl;
-  std::clog << "delays values = ";
-  for (int i = 0; i < ps.delays().size(); i++)
-    std::clog << ps.delays()[i] << " ";
-  std::clog << std::endl;
+  std::clog << "delay count = " << ps.delays().size() << std::endl;
   std::clog << "mapping = ";
   for (int i = 0; i < ps.channelMapping().size(); i++)
     std::clog << ps.channelMapping()[i] << " ";
