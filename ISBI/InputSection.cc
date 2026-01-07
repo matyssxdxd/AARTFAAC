@@ -61,12 +61,15 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     if (station == 1) {
       double delayInSamples = ps.delays()[delayIndex] * ps.sampleRate();
       delay = static_cast<int>(std::floor(delayInSamples + 0.5));
+      std::cout << "Station 1: delayIndex=" << delayIndex 
+        << " delay_sec=" << ps.delays()[delayIndex]
+        << " delay_samples=" << delay << std::endl;
     }
 #endif
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter();
 #ifdef ISBI_DELAYS
-    TimeStamp earlyStartTime   = startTime - nrHistorySamples + delay;
-    TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() + delay;
+    TimeStamp earlyStartTime   = startTime - nrHistorySamples - delay;
+    TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - delay;
 #else
     TimeStamp earlyStartTime   = startTime - nrHistorySamples;
     TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();

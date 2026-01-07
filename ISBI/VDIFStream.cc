@@ -27,6 +27,7 @@ VDIFStream::VDIFStream(std::string inputFile, double sampleRate)
     std::cout << "VDIF header size: " << headerSize << std::endl;
     std::cout << "Sample rate: " << sampleRate << std::endl;
     std::cout << "VDIF samples per frame: " << firstHeader.samplesPerFrame() << std::endl;
+    std::cout << "First timestamp: " << firstHeader.timestamp(sampleRate) << std::endl;
   }
 
 bool VDIFStream::readFirstHeader() {

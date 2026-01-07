@@ -285,7 +285,6 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       hostToDeviceStream.memcpyHtoDAsync(devDelaysAtBegin, hostDelaysAtBegin.origin(), hostDelaysAtBegin.bytesize());
       hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
     
-#ifdef ISBI_DELAYS
       uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
       uint64_t timeOffset = time - ps.startTime();
       uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
@@ -296,29 +295,31 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
       double delayInSamples = ps.delays()[i] * ps.sampleRate();
       int integerDelay = static_cast<int>(std::floor(delayInSamples + .5));
-      float fractionalDelay = static_cast<float>(delayInSamples - integerDelay);
+      double fractionalDelayInSamples = delayInSamples - integerDelay;
 
+      // Convert fractional delay from samples to SECONDS
+      float fractionalDelayInSeconds = static_cast<float>(fractionalDelayInSamples / ps.sampleRate());
+      
+      // Delay rate in SECONDS per output sample
+      // ps.delays() is already in seconds, so:
+      float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / ps.nrSamplesPerChannel());
+      
+      std::cout << "i=" << i << ",N=" << N << std::endl;
       std::cout << "delay_in_samples=" << delayInSamples << std::endl;
       std::cout << "integer_delay=" << integerDelay << std::endl;
-      std::cout << "fractional_delay=" << fractionalDelay << std::endl;
-
-      double delayInSamples_N = ps.delays()[i + 1] * ps.sampleRate();
-      int integerDelay_N = static_cast<int>(std::floor(delayInSamples_N + .5));
-      float dN = static_cast<float>(delayInSamples_N - integerDelay_N);
-
+      std::cout << "fractional_delay_seconds=" << fractionalDelayInSeconds << std::endl;
+      std::cout << "delay_rate_seconds_per_sample=" << delayRate << std::endl;
+      
       // In this case the antenna 0 is chosen as a reference antenna
-      hostFracDelays[1][0] = fractionalDelay; 
-      hostFracDelays[1][1] = (dN - fractionalDelay) / ps.nrSamplesPerChannel();
+      hostFracDelays[1][0] = -fractionalDelayInSeconds;  // seconds
+      hostFracDelays[1][1] = -delayRate;                  // seconds per output sample
       hostFracDelays[0][0] = 0;
       hostFracDelays[0][1] = 0;
 
-      hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2); 
-#endif
+      hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2);
     }
 
-#ifdef ISBI_DELAYS
     double subbandCenterFrequency = ps.centerFrequencies()[subband] * 1e6;
-#endif
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 
@@ -361,31 +362,18 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
-
     if (((subband + 1) % 2) == 0) {
-#ifdef ISBI_DELAYS
       filter.launchAsync(executeStream,
           devCorrectedData,
           devInputBuffer,
           devFracDelays,
           subbandCenterFrequency);
-#else
-      filter.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer);
-#endif
     } else {
-#ifdef ISBI_DELAYS
       filterOdd.launchAsync(executeStream,
           devCorrectedData,
           devInputBuffer,
           devFracDelays,
           subbandCenterFrequency);
-#else
-      filterOdd.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer);
-#endif
     }
 
     executeStream.record(inputDataFree);
