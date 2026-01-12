@@ -311,15 +311,15 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       std::cout << "delay_rate_seconds_per_sample=" << delayRate << std::endl;
       
       // In this case the antenna 0 is chosen as a reference antenna
-      hostFracDelays[1][0] = -fractionalDelayInSeconds;  // seconds
-      hostFracDelays[1][1] = -delayRate;                  // seconds per output sample
+      hostFracDelays[1][0] = fractionalDelayInSeconds;  // seconds
+      hostFracDelays[1][1] = delayRate;                  // seconds per output sample
       hostFracDelays[0][0] = 0;
       hostFracDelays[0][1] = 0;
 
       hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2);
     }
 
-    double subbandCenterFrequency = ps.centerFrequencies()[subband] * 1e6;
+    double subbandCenterFrequency = ps.centerFrequencies()[subband];
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 
