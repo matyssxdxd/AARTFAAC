@@ -61,9 +61,6 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     if (station == 1) {
       double delayInSamples = ps.delays()[delayIndex] * ps.sampleRate();
       delay = static_cast<int>(std::floor(delayInSamples + 0.5));
-      std::cout << "Station 1: delayIndex=" << delayIndex 
-        << " delay_sec=" << ps.delays()[delayIndex]
-        << " delay_samples=" << delay << std::endl;
     }
 #endif
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter();
@@ -88,6 +85,8 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
       assert(n <= ps.nrRingBufferSamplesPerSubband());
 
       for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
+            std::cout << "Station " << station << " pol " << pol 
+                            << " earlyStartTime=" << earlyStartTime << std::endl;
         size_t offset = (station * ps.nrPolarizations() + pol) * n * nrBytesPerTime;
 
         uint32_t firstPart = ps.nrRingBufferSamplesPerSubband() - startTimeIndex;

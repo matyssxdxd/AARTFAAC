@@ -12,8 +12,8 @@
 Visibilities::Visibilities(const ISBI_Parset &ps, unsigned subband)
 :
   ps(ps),
-  //hostVisibilities(boost::extents[ps.nrOutputChannelsPerSubband()][ps.nrBaselines()][ps.nrVisibilityPolarizations()])
-  hostVisibilities(boost::extents[ps.nrBaselines()][ps.nrOutputChannelsPerSubband()][ps.nrVisibilityPolarizations()]),
+  hostVisibilities(boost::extents[ps.nrOutputChannelsPerSubband()][ps.nrBaselines()][ps.nrPolarizations()][ps.nrPolarizations()])
+  //hostVisibilities(boost::extents[ps.nrBaselines()][ps.nrOutputChannelsPerSubband()][ps.nrVisibilityPolarizations()]),
   subband(subband)
 {
   memset(&header, 0, sizeof header);

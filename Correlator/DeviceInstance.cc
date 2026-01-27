@@ -316,10 +316,14 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       hostFracDelays[0][0] = 0;
       hostFracDelays[0][1] = 0;
 
+      std::cout << "devFracDelays: station0=(" << hostFracDelays[0][0] << "," << hostFracDelays[0][1] 
+                << ") station1=(" << hostFracDelays[1][0] << "," << hostFracDelays[1][1] << ")" << std::endl;
       hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2);
     }
 
     double subbandCenterFrequency = ps.centerFrequencies()[subband];
+
+    std::cout << "subbandCenterFrequency=" << subbandCenterFrequency << std::endl;
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 
