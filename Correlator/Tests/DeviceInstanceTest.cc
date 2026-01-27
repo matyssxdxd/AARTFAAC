@@ -89,7 +89,7 @@ int main(int argc, char **argv)
     MultiArrayHostBuffer<char, 4> hostInputBuffer(boost::extents[(ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter()][ps.nrStations()][ps.nrPolarizations()][ps.nrBytesPerComplexSample()]);
     MultiArrayHostBuffer<float, 3> hostDelaysAtBegin(boost::extents[ps.nrBeams()][ps.nrStations()][ps.nrPolarizations()]);
     MultiArrayHostBuffer<float, 3> hostDelaysAfterEnd(boost::extents[ps.nrBeams()][ps.nrStations()][ps.nrPolarizations()]);
-    MultiArrayHostBuffer<std::complex<float>, 3> hostVisibilities(boost::extents[ps.nrBaselines()][ps.nrOutputChannelsPerSubband()][ps.nrVisibilityPolarizations()]);
+    MultiArrayHostBuffer<std::complex<float>, 4> hostVisibilities(boost::extents[ps.nrOutputChannelsPerSubband()][ps.nrBaselines()][ps.nrPolarizations()][ps.nrPolarizations()]);
 
     setTestPattern(ps, hostInputBuffer);
     memset(hostDelaysAtBegin.origin(), 0, hostDelaysAtBegin.bytesize());

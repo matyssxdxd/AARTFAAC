@@ -78,34 +78,6 @@ COMMON_SOURCES=		\
 			Common/Stream/StringStream.cc\
 			Common/TimeStamp.cc
 
-AARTFAAC_SOURCES=	$(COMMON_SOURCES)\
-			AARTFAAC/AARTFAAC.cc\
-			AARTFAAC/CorrelatorPipeline.cc\
-			AARTFAAC/CorrelatorWorkQueue.cc\
-			AARTFAAC/InputBuffer.cc\
-			AARTFAAC/InputSection.cc\
-			AARTFAAC/OutputBuffer.cc\
-			AARTFAAC/OutputSection.cc\
-			AARTFAAC/Parset.cc\
-			AARTFAAC/Visibilities.cc\
-			Correlator/CorrelatorPipeline.cc\
-			Correlator/Parset.cc\
-			Correlator/DeviceInstance.cc\
-			Correlator/Kernels/Transpose.cu\
-			Correlator/Kernels/TransposeKernel.cc\
-			Correlator/Parset.cc\
-			Correlator/TCC.cc
-
-AARTFAAC_TESTS_GENERATE_TEST_INPUT_SOURCES=$(COMMON_SOURCES)\
-			AARTFAAC/Tests/GenerateTestInput.cc
-
-AARTFAAC_TESTS_INPUT_SECTION_TEST_SOURCES=$(COMMON_SOURCES)\
-			AARTFAAC/InputBuffer.cc\
-			AARTFAAC/InputSection.cc\
-			AARTFAAC/Parset.cc\
-			AARTFAAC/Tests/InputSectionTest.cc\
-			Correlator/Parset.cc
-
 CORRELATOR_SOURCES=	$(COMMON_SOURCES)\
 			Correlator/Correlator.cc\
 			Correlator/CorrelatorPipeline.cc\
@@ -114,16 +86,6 @@ CORRELATOR_SOURCES=	$(COMMON_SOURCES)\
 			Correlator/Kernels/TransposeKernel.cc\
 			Correlator/Parset.cc\
 			Correlator/TCC.cc
-
-CORRELATOR_DEVICE_INSTANCE_TEST_SOURCES=\
-			$(COMMON_SOURCES)\
-			Correlator/CorrelatorPipeline.cc\
-			Correlator/DeviceInstance.cc\
-			Correlator/Kernels/Transpose.cu\
-			Correlator/Kernels/TransposeKernel.cc\
-			Correlator/Parset.cc\
-			Correlator/TCC.cc\
-			Correlator/Tests/DeviceInstanceTest.cc
 
 ISBI_SOURCES =		$(COMMON_SOURCES)\
                         ISBI/isbi.cc\
@@ -146,17 +108,11 @@ ISBI_SOURCES =		$(COMMON_SOURCES)\
 
 
 ALL_SOURCES=		$(sort\
-			   $(AARTFAAC_SOURCES)\
-			   $(AARTFAAC_TESTS_GENERATE_TEST_INPUT_SOURCES)\
-			   $(AARTFAAC_TESTS_INPUT_SECTION_TEST_SOURCES)\
 			   $(CORRELATOR_SOURCES)\
 			   $(CORRELATOR_DEVICE_INSTANCE_TEST_SOURCES)\
 			   $(ISBI_SOURCES)\
 			 )
 
-AARTFAAC_OBJECTS=	$(patsubst %.cu,%.o,$(AARTFAAC_SOURCES:%.cc=%.o))
-AARTFAAC_TESTS_GENERATE_TEST_INPUT_OBJECTS=$(patsubst %.cu,%.o,$(AARTFAAC_TESTS_GENERATE_TEST_INPUT_SOURCES:%.cc=%.o))
-AARTFAAC_TESTS_INPUT_SECTION_TEST_OBJECTS=$(patsubst %.cu,%.o,$(AARTFAAC_TESTS_INPUT_SECTION_TEST_SOURCES:%.cc=%.o))
 CORRELATOR_OBJECTS=	$(patsubst %.cu,%.o,$(CORRELATOR_SOURCES:%.cc=%.o))
 CORRELATOR_DEVICE_INSTANCE_TEST_OBJECTS=$(patsubst %.cu,%.o,$(CORRELATOR_DEVICE_INSTANCE_TEST_SOURCES:%.cc=%.o))
 ISBI_OBJECTS=		$(patsubst %.cu,%.o,$(ISBI_SOURCES:%.cc=%.o))
@@ -164,11 +120,7 @@ ISBI_OBJECTS=		$(patsubst %.cu,%.o,$(ISBI_SOURCES:%.cc=%.o))
 ALL_OBJECTS=		$(patsubst %.cu,%.o,$(ALL_SOURCES:%.cc=%.o))
 DEPENDENCIES=		$(patsubst %.cu,%.d,$(ALL_SOURCES:%.cc=%.d))
 
-EXECUTABLES=		AARTFAAC/AARTFAAC\
-			AARTFAAC/Tests/GenerateTestInput\
-			AARTFAAC/Tests/InputSectionTest\
-			Correlator/Correlator\
-			Correlator/Tests/DeviceInstanceTest\
+EXECUTABLES=            Correlator/Correlator\
 			ISBI/ISBI
 
 LIBRARIES+=		-L${BOOST_LIB} -lboost_program_options
@@ -202,22 +154,7 @@ all::			$(EXECUTABLES)
 clean::
 			rm -rf $(ALL_OBJECTS) $(DEPENDENCIES) $(EXECUTABLES) nvidia-mathdx-22.11.0-Linux.tar.gz nvidia-mathdx-22.11.0-Linux
 
-install::		AARTFAAC/AARTFAAC
-
-AARTFAAC/AARTFAAC:	$(AARTFAAC_OBJECTS)
-			$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBRARIES)
-
-AARTFAAC/Tests/GenerateTestInput:	$(AARTFAAC_TESTS_GENERATE_TEST_INPUT_OBJECTS)
-			$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBRARIES)
-
-AARTFAAC/Tests/InputSectionTest:	$(AARTFAAC_TESTS_INPUT_SECTION_TEST_OBJECTS)
-			$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBRARIES)
-
 Correlator/Correlator:	$(CORRELATOR_OBJECTS)
-			$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBRARIES)
-
-Correlator/Tests/DeviceInstanceTest:\
-			$(CORRELATOR_DEVICE_INSTANCE_TEST_OBJECTS)
 			$(CXX) $(CXXFLAGS) -o $@ $^ $(LIBRARIES)
 
 ISBI/ISBI:              $(ISBI_OBJECTS)
