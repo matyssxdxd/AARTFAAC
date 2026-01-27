@@ -67,7 +67,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     filterOddArgs.fft = tcc::FilterArgs::FFT {
       .sampleFormat = tcc::FilterArgs::Format::fp32,
       .shift = false,
-      .mirror = true 
+      .mirror = false 
     };
 
 #ifdef ISBI_DELAYS
