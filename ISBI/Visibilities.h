@@ -44,7 +44,7 @@ class Visibilities
     Visibilities &operator += (const Visibilities &);
 
     const ISBI_Parset			 	 &ps;
-    MultiArrayHostBuffer<std::complex<float>, 4> hostVisibilities;
+    MultiArrayHostBuffer<std::complex<float>, 3> hostVisibilities;
     TimeStamp					 startTime, endTime;
     unsigned					 subband;
     Header					 header;
