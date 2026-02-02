@@ -96,6 +96,7 @@ class VDIFStream : public Stream {
     size_t tryWrite(const void *ptr, size_t size) { return 0; }
     size_t tryRead(void *ptr, size_t size) { return 0; }
 
+    int64_t getFirstTimestamp() const;
     ~VDIFStream();
 };
 
@@ -127,6 +128,10 @@ inline HeaderStatus VDIFStream::checkHeader() {
   }
 
   return HeaderStatus::VALID;
+}
+
+inline int64_t VDIFStream::getFirstTimestamp() const {
+  return firstHeader.timestamp(sampleRate);
 }
 
 #endif //RADIOBLOCKS_VDIFSTREAM_H

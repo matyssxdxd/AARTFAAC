@@ -205,8 +205,12 @@ void InputBuffer::inputThreadBody() {
 
 #endif
 
-  VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation], ps.sampleRate()); 
-  assert(&vdifStream != nullptr);  
+  VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation], ps.sampleRate());
+  assert(&vdifStream != nullptr);
+
+  std::cout << "Station " << myFirstStation << " first VDIF timestamp: "
+          << vdifStream.getFirstTimestamp() << " samples"
+          << " vs ps.startTime()=" << ps.startTime() << std::endl;
 
   alignas(16) std::array<std::array<char, maxPacketSize>, maxNrPacketsInBuffer> packetBuffer;
 

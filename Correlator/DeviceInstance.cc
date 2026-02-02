@@ -299,11 +299,11 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
       // Convert fractional delay from samples to SECONDS
       float fractionalDelayInSeconds = static_cast<float>(fractionalDelayInSamples / ps.sampleRate());
-      
+
       // Delay rate in SECONDS per output sample
       // ps.delays() is already in seconds, so:
       float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / ps.nrSamplesPerChannel());
-      
+
       std::cout << "i=" << i << ",N=" << N << std::endl;
       std::cout << "delay_in_samples=" << delayInSamples << std::endl;
       std::cout << "integer_delay=" << integerDelay << std::endl;
