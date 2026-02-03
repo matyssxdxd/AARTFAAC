@@ -11,8 +11,6 @@
 #include <iostream>
 #include <cmath>
 
-#define ISBI_DELAYS
-
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
 inline static cpu_set_t cpu_and(const cpu_set_t &a, const cpu_set_t &b)
 {
@@ -45,47 +43,6 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
   context(CU_CTX_SCHED_BLOCKING_SYNC, device),
   //integratedMemory(device.getAttribute(CU_DEVICE_ATTRIBUTE_INTEGRATED)),
 
-  filterOddFuture(std::async([&] {
-    context.setCurrent();
-
-    tcc::FilterArgs filterOddArgs;
-    filterOddArgs.nrReceivers = ps.nrStations();
-    filterOddArgs.nrChannels = ps.nrChannelsPerSubband();
-    filterOddArgs.nrSamplesPerChannel = ps.nrSamplesPerChannel();
-    filterOddArgs.nrPolarizations = ps.nrPolarizations();
-
-    filterOddArgs.input = tcc::FilterArgs::Input {
-      .sampleFormat = tcc::FilterArgs::Format::i8,
-      .isPurelyReal = true
-    };
-
-    filterOddArgs.firFilter = tcc::FilterArgs::FIR_Filter {
-      .nrTaps = 16,
-      .sampleFormat = tcc::FilterArgs::Format::fp32
-    };
-
-    filterOddArgs.fft = tcc::FilterArgs::FFT {
-      .sampleFormat = tcc::FilterArgs::Format::fp32,
-      .shift = false,
-      .mirror = false 
-    };
-
-#ifdef ISBI_DELAYS
-    filterOddArgs.delays = tcc::FilterArgs::Delays {
-      .subbandBandwidth = ps.subbandBandwidth(),
-      .polynomialOrder = 1,
-      .separatePerPolarization = false
-    };
-#endif
-
-    filterOddArgs.output = tcc::FilterArgs::Output {
-      .sampleFormat = tcc::FilterArgs::Format::fp16,
-      .scaleFactor = std::nullopt
-    };
-
-    return tcc::Filter(device, filterOddArgs);
-  })),
-
   filterFuture(std::async([&] {
     context.setCurrent();
      
@@ -111,13 +68,11 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
         .mirror = false 
     };
 
-#ifdef ISBI_DELAYS 
     filterArgs.delays = {
       .subbandBandwidth = ps.subbandBandwidth(),
       .polynomialOrder = 1,
       .separatePerPolarization = false
     };
-#endif
     
     filterArgs.output = tcc::FilterArgs::Output {
       .sampleFormat = tcc::FilterArgs::Format::fp16,
@@ -135,7 +90,6 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
 
   devCorrectedData((size_t) ps.nrChannelsPerSubband() * ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample()),
   
-  filterOdd(filterOddFuture.get()),
   filter(filterFuture.get()),
   tcc(tccFuture.get()),
 
@@ -278,48 +232,51 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     hostToDeviceStream.wait(inputDataFree);
 
-    if (time != previousTime) {
-      // only transfer delays if time has changed
-      previousTime = time;
 
-      hostToDeviceStream.memcpyHtoDAsync(devDelaysAtBegin, hostDelaysAtBegin.origin(), hostDelaysAtBegin.bytesize());
-      hostToDeviceStream.memcpyHtoDAsync(devDelaysAfterEnd, hostDelaysAfterEnd.origin(), hostDelaysAfterEnd.bytesize());
-    
-      uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
-      uint64_t timeOffset = time - ps.startTime();
-      uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-      uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
-      uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
+    uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
+    uint64_t timeOffset = time - ps.startTime();
+    uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
+    uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
+    uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
 
-      float hostFracDelays[2][2];
+    double currentDelay, nextDelay = 0.0;
 
-      double delayInSamples = ps.delays()[i] * ps.sampleRate();
-      int integerDelay = static_cast<int>(std::floor(delayInSamples + .5));
-      double fractionalDelayInSamples = delayInSamples - integerDelay;
-
-      // Convert fractional delay from samples to SECONDS
-      float fractionalDelayInSeconds = static_cast<float>(fractionalDelayInSamples / ps.sampleRate());
-
-      // Delay rate in SECONDS per output sample
-      // ps.delays() is already in seconds, so:
-      float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / ps.nrSamplesPerChannel());
-
-      std::cout << "i=" << i << ",N=" << N << std::endl;
-      std::cout << "delay_in_samples=" << delayInSamples << std::endl;
-      std::cout << "integer_delay=" << integerDelay << std::endl;
-      std::cout << "fractional_delay_seconds=" << fractionalDelayInSeconds << std::endl;
-      std::cout << "delay_rate_seconds_per_sample=" << delayRate << std::endl;
-      
-      // In this case the antenna 0 is chosen as a reference antenna
-      hostFracDelays[1][0] = fractionalDelayInSeconds;  // seconds
-      hostFracDelays[1][1] = delayRate;                  // seconds per output sample
-      hostFracDelays[0][0] = 0;
-      hostFracDelays[0][1] = 0;
-
-      std::cout << "devFracDelays: station0=(" << hostFracDelays[0][0] << "," << hostFracDelays[0][1] 
-                << ") station1=(" << hostFracDelays[1][0] << "," << hostFracDelays[1][1] << ")" << std::endl;
-      hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2);
+    if (((subband + 1) % 2) == 0) {
+      currentDelay = -ps.delays()[i];
+      nextDelay = -ps.delays()[i + 1];
+    } else {
+      currentDelay = ps.delays()[i];
+      nextDelay = ps.delays()[i + 1];
     }
+
+    float hostFracDelays[2][2];
+
+    double delayInSamples = currentDelay * ps.sampleRate();
+    int integerDelay = static_cast<int>(std::floor(delayInSamples + .5));
+    double fractionalDelayInSamples = delayInSamples - integerDelay;
+
+    // Convert fractional delay from samples to SECONDS
+    float fractionalDelayInSeconds = static_cast<float>(fractionalDelayInSamples / ps.sampleRate());
+
+    // Delay rate in SECONDS per output sample
+    // ps.delays() is already in seconds, so:
+    float delayRate = static_cast<float>((nextDelay - currentDelay) / ps.nrSamplesPerChannel());
+
+    std::cout << "i=" << i << ",N=" << N << std::endl;
+    std::cout << "delay_in_samples=" << delayInSamples << std::endl;
+    std::cout << "integer_delay=" << integerDelay << std::endl;
+    std::cout << "fractional_delay_seconds=" << fractionalDelayInSeconds << std::endl;
+    std::cout << "delay_rate_seconds_per_sample=" << delayRate << std::endl;
+
+    // In this case the antenna 0 is chosen as a reference antenna
+    hostFracDelays[1][0] = fractionalDelayInSeconds;  // seconds
+    hostFracDelays[1][1] = delayRate;                  // seconds per output sample
+    hostFracDelays[0][0] = 0;
+    hostFracDelays[0][1] = 0;
+
+    std::cout << "devFracDelays: station0=(" << hostFracDelays[0][0] << "," << hostFracDelays[0][1] 
+      << ") station1=(" << hostFracDelays[1][0] << "," << hostFracDelays[1][1] << ")" << std::endl;
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2);
 
     double subbandCenterFrequency = ps.centerFrequencies()[subband];
 
@@ -366,19 +323,12 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
-    if (((subband + 1) % 2) == 0) {
-      filter.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer,
-          devFracDelays,
-          subbandCenterFrequency);
-    } else {
-      filterOdd.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer,
-          devFracDelays,
-          subbandCenterFrequency);
-    }
+    filter.launchAsync(executeStream,
+        devCorrectedData,
+        devInputBuffer,
+        devFracDelays,
+        subbandCenterFrequency);
+
 
     executeStream.record(inputDataFree);
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);

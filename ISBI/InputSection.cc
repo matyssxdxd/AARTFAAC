@@ -58,8 +58,14 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
   for (unsigned station = 0; station < ps.nrStations(); station++) {
 #ifdef ISBI_DELAYS
     int delay = 0;
+    double currentDelay = 0;
     if (station == 1) {
-      double delayInSamples = ps.delays()[delayIndex] * ps.sampleRate();
+      if (((subband + 1) % 2) == 0) {
+        currentDelay = -ps.delays()[delayIndex];
+      } else {
+        currentDelay = ps.delays()[delayIndex];
+      }
+      double delayInSamples = currentDelay * ps.sampleRate();
       delay = static_cast<int>(std::floor(delayInSamples + 0.5));
     }
 #endif
