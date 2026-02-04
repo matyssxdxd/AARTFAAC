@@ -403,13 +403,8 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
-#ifdef ISBI_DELAYS
   TimeStamp earlyStartTime   = startTime - nrHistorySamples - ps.maxDelay();
   TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - ps.maxDelay();
-#else
-  TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
-#endif
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
 }
