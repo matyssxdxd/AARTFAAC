@@ -55,11 +55,12 @@ class DeviceInstance
     cu::Stream			executeStream;
 
   protected:
-    std::future<tcc::Filter>		filterFuture; // compile asynchronously
+    std::future<tcc::Filter>		filterFuture, filterOddFuture; // compile asynchronously
     std::future<TCC>		tccFuture; // compile asynchronously
     cu::DeviceMemory		devCorrectedData;
 
     tcc::Filter			filter;
+    tcc::Filter			filterOdd;
     TCC				tcc;
 
     std::mutex			enqueueMutex;

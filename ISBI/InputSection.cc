@@ -57,19 +57,14 @@ void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory 
     int delay = 0;
     double currentDelay = 0;
     if (station == 1) {
-      if (((subband + 1) % 2) == 0) {
-        currentDelay = -ps.delays()[delayIndex];
-      } else {
-        currentDelay = ps.delays()[delayIndex];
-      }
-      double delayInSamples = currentDelay * ps.sampleRate();
-      delay = static_cast<int>(std::floor(delayInSamples + 0.5));
+      double delayInSamples = -ps.delays()[delayIndex] * ps.sampleRate();
+      delay = static_cast<int>(std::floor(delayInSamples));
     }
 
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter();
 
-    TimeStamp earlyStartTime   = startTime - nrHistorySamples + delay;
-    TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() + delay;
+    TimeStamp earlyStartTime   = startTime - nrHistorySamples - std::abs(delay);
+    TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - std::abs(delay);
 
     unsigned startTimeIndex = earlyStartTime % ps.nrRingBufferSamplesPerSubband();
     unsigned endTimeIndex = endTime % ps.nrRingBufferSamplesPerSubband();
