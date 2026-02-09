@@ -281,18 +281,15 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     float hostFracDelays[2][2];
 
-    double absDelay = std::abs(ps.delays()[i]);
-    double absNextDelay = std::abs(ps.delays()[i + 1]);
-
-    double delayInSamples = absDelay * ps.sampleRate();
+    double delayInSamples = ps.delays()[i] * ps.sampleRate();
     int integerDelay = static_cast<int>(std::floor(delayInSamples));
     double fractionalDelayInSamples = delayInSamples - integerDelay;
     float fractionalDelay = static_cast<float>(fractionalDelayInSamples / ps.sampleRate());
 
-    float delayRate = static_cast<float>((absNextDelay - absDelay) / ps.nrSamplesPerChannel());
+    float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / ps.nrSamplesPerChannel());
 
-    hostFracDelays[1][0] = fractionalDelay;
-    hostFracDelays[1][1] = delayRate;
+    hostFracDelays[1][0] = -fractionalDelay;
+    hostFracDelays[1][1] = -delayRate;
     hostFracDelays[0][0] = 0;
     hostFracDelays[0][1] = 0;
 
