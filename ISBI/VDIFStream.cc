@@ -71,6 +71,7 @@ void VDIFStream::read(char* frame) {
 
   std::memcpy(&currentHeader, frame, headerSize);
   if (checkHeader() != HeaderStatus::VALID) {
+    const off_t expectedOffset = static_cast<off_t>(numberOfFrames) * (headerSize + dataSize);
     std::cout << "Invalid header found at offset " << expectedOffset << std::endl;
     findNextValidHeader();
 
