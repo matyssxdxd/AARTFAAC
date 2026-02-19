@@ -130,34 +130,43 @@ int64_t VDIFHeader::timestamp(double sample_rate) const {
            + dataframe_in_second * samplesPerFrame();
 }
 
-void VDIFHeader::decode2bit(const std::array<char, maxPacketSize>& frame, std::vector<int8_t>& out) const {
-    const std::size_t headerBytes = sizeof(VDIFHeader);
-    const std::size_t payloadBytes = static_cast<std::size_t>(dataSize());
-
-    const char* dataBuffer = frame.data() + headerBytes;
-
-    const unsigned nchan = numberOfChannels();
-    const unsigned nsamp = samplesPerFrame();
-
-    out.resize(nsamp * nchan);
-
-    for (unsigned sample = 0; sample < nsamp; ++sample) {
-        for (unsigned channel = 0; channel < nchan; ++channel) {
-            const unsigned idx = sample * nchan + channel;
-
-            // 4 samples per byte, 2 bits per sample
-            const unsigned byteIdx   = idx / 4;
-            const unsigned bitOffset = (idx % 4) * 2;
-
-            if (byteIdx < payloadBytes) {
-                const uint8_t byte = static_cast<uint8_t>(dataBuffer[byteIdx]);
-                const uint8_t code = static_cast<uint8_t>((byte >> bitOffset) & 0b11);
-                out[idx] = DECODER_LEVEL_2BIT[code];
-            } else {
-                out[idx] = 0;
-            }
-        }
+void VDIFHeader::decode2bit(const std::array<char, maxPacketSize>& frame,
+                            std::vector<int8_t>& out) const {
+  static const std::array<int8_t, 256 * 4> decodeLUT = []() {
+    std::array<int8_t, 256 * 4> lut{};
+    for (unsigned byte = 0; byte < 256; ++byte) {
+      lut[byte * 4 + 0] = DECODER_LEVEL_2BIT[(byte >> 0) & 0x3];
+      lut[byte * 4 + 1] = DECODER_LEVEL_2BIT[(byte >> 2) & 0x3];
+      lut[byte * 4 + 2] = DECODER_LEVEL_2BIT[(byte >> 4) & 0x3];
+      lut[byte * 4 + 3] = DECODER_LEVEL_2BIT[(byte >> 6) & 0x3];
     }
+    return lut;
+  }();
+
+  const std::size_t payloadBytes = static_cast<std::size_t>(dataSize());
+  const uint8_t* data =
+      reinterpret_cast<const uint8_t*>(frame.data() + headerSize());
+
+  const std::size_t totalSamples =
+      static_cast<std::size_t>(samplesPerFrame()) * numberOfChannels();
+
+  const std::size_t decodedSamples =
+      std::min(totalSamples, payloadBytes * 4);
+
+  out.assign(totalSamples, 0); // resize + zero-fill remainder
+
+  const std::size_t fullBytes = decodedSamples / 4;
+  const std::size_t tail      = decodedSamples % 4;
+
+  for (std::size_t i = 0; i < fullBytes; ++i) {
+    const int8_t* decoded = &decodeLUT[static_cast<std::size_t>(data[i]) * 4];
+    std::copy_n(decoded, 4, out.begin() + i * 4);
+  }
+
+  if (tail != 0) {
+    const int8_t* decoded = &decodeLUT[static_cast<std::size_t>(data[fullBytes]) * 4];
+    std::copy_n(decoded, tail, out.begin() + fullBytes * 4);
+  }
 }
 
 
