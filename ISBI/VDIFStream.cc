@@ -23,6 +23,10 @@ VDIFStream::VDIFStream(std::string inputFile, double sampleRate)
     dataSize = firstHeader.dataSize();
     headerSize = firstHeader.headerSize();
 
+    file.clear();
+    file.seekg(static_cast<off_t>(numberOfFrames) * (headerSize + dataSize), std::ios::beg);
+    if (!file) { throw std::runtime_error("Failed to seek to the first frame!"); }
+
     std::cout << "VDIF data size: " << dataSize << std::endl;
     std::cout << "VDIF header size: " << headerSize << std::endl;
     std::cout << "Sample rate: " << sampleRate << std::endl;
@@ -59,9 +63,6 @@ bool VDIFStream::readFirstHeader() {
 }
 
 void VDIFStream::read(char* frame) {
-  off_t expectedOffset = static_cast<off_t>(numberOfFrames) * (headerSize + dataSize);
-  if (file.tellg() != expectedOffset) file.seekg(expectedOffset);
-
   file.read(frame, headerSize + dataSize);
   if (file.gcount() != static_cast<std::streamsize>(headerSize + dataSize)) {
     if (file.eof()) throw EndOfStreamException("VDIFStream::read EOF reached");
