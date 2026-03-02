@@ -19,7 +19,7 @@ class ISBI_Parset : public CorrelatorParset
     unsigned visibilitiesIntegration() const { return _visibilitiesIntegration; }
     unsigned nrRingBufferSamplesPerSubband() const { return _nrRingBufferSamplesPerSubband; }
 
-    const int maxDelay() const { return 50; }; 
+    const int maxDelay() const { return _maxDelaySamples; }; 
     
     virtual std::vector<std::string> compileOptions() const;
 
@@ -32,6 +32,7 @@ class ISBI_Parset : public CorrelatorParset
 
     unsigned _nrRingBufferSamplesPerSubband;
     unsigned _visibilitiesIntegration;
+    int _maxDelaySamples;
 };
 
 

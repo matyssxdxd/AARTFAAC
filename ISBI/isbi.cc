@@ -35,6 +35,7 @@ void printSettings(const ISBI_Parset &ps){
   std::clog << "sample rate = " << ps.sampleRate() << std::endl;
   std::clog << "subband bandwidth = " << ps.subbandBandwidth() << std::endl;
   std::clog << "delay count = " << ps.delays().size() << std::endl;
+  std::clog << "max delay (samples) = " << ps.maxDelay() << std::endl;
   std::clog << "mapping = ";
   for (int i = 0; i < ps.channelMapping().size(); i++)
     std::clog << ps.channelMapping()[i] << " ";
@@ -42,7 +43,6 @@ void printSettings(const ISBI_Parset &ps){
   std::clog<< "center frequencies = ";
   for (int i = 0; i < ps.centerFrequencies().size(); i++)
     std::clog << ps.centerFrequencies()[i] << " ";
-  std::clog << (size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter() * ps.nrBytesPerRealSample() << std::endl;
   std::clog << std::endl;
 }
 

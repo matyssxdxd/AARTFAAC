@@ -1,7 +1,8 @@
 #include "ISBI/Parset.h"
-
 #include <boost/program_options.hpp>
 #include <fstream>
+#include <algorithm>
+#include <cmath>
 
 
 #if 0
@@ -24,8 +25,10 @@ std::vector<std::string> AARTFAAC_Parset::getDescriptors(const std::string &arg)
 ISBI_Parset::ISBI_Parset(int argc, char **argv)
 :
   CorrelatorParset(argc, argv, false),
-  _nrRingBufferSamplesPerSubband(128015360),
-  _visibilitiesIntegration(1)
+  // _nrRingBufferSamplesPerSubband(128015360),
+  _nrRingBufferSamplesPerSubband(256030720),
+  _visibilitiesIntegration(1),
+  _maxDelaySamples(0)
 {
   using namespace boost::program_options;
 
@@ -60,6 +63,11 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
   if (_outputBufferNodes.size() != 0 && _outputBufferNodes.size() != _outputDescriptors.size())
     throw Error("output buffer node list has unexpected size");
 #endif
+
+  for (double delaySeconds : delays()) {
+    int delaySamples = static_cast<int>(std::ceil(std::abs(delaySeconds * sampleRate())));
+    _maxDelaySamples = std::max(_maxDelaySamples, delaySamples);
+  }
 }
 
 

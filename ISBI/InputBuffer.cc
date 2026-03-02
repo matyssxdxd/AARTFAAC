@@ -112,7 +112,7 @@ InputBuffer::InputBuffer(const ISBI_Parset &ps, MultiArrayHostBuffer<char, 4> ho
   nrHistorySamples((NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter()),
   latestWriteTime(0, ps.clockSpeed()),
   stop(false),
-  readerAndWriterSynchronization(nrRingBufferSamplesPerSubband, ps.startTime() - nrHistorySamples - 20),
+  readerAndWriterSynchronization(nrRingBufferSamplesPerSubband, ps.startTime() - nrHistorySamples - ps.maxDelay()),
   inputThread(&InputBuffer::inputThreadBody, this),
   logThread(&InputBuffer::logThreadBody, this),
   noInputThreadPtr(ps.realTime() ? new std::thread(&InputBuffer::noInputThreadBody, this) : 0)
@@ -143,13 +143,14 @@ InputBuffer::~InputBuffer()
 
 void InputBuffer::handleConsecutivePackets(std::array<std::array<char, maxPacketSize>, maxNrPacketsInBuffer>& packetBuffer, unsigned firstPacket, unsigned lastPacket) {
   const VDIFHeader* header = reinterpret_cast<const VDIFHeader*>(packetBuffer[firstPacket].data());
-  TimeStamp beginTime{header->timestamp(ps.sampleRate())};
+  TimeStamp beginTime(header->timestamp(ps.sampleRate()), ps.clockSpeed());
 
   std::lock_guard<std::mutex> latestWriteTimeLock(latestWriteTimeMutex);
 
   if (beginTime >= latestWriteTime) {
     unsigned timeIndex = beginTime % nrRingBufferSamplesPerSubband;
     unsigned myNrTimes = (lastPacket - firstPacket) * nrTimesPerPacket;
+
     TimeStamp endTime(beginTime + myNrTimes);
 
     latestWriteTime = endTime;
@@ -216,7 +217,7 @@ void InputBuffer::inputThreadBody() {
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
-  TimeStamp timeStamp(vdifStream.getFirstTimestamp(), ps.clockSpeed()); 
+  TimeStamp timeStamp(0, ps.clockSpeed()); 
 
 #if defined USE_RECVMMSG
   struct iovec   iovecs[maxNrPacketsInBuffer];
@@ -248,9 +249,9 @@ void InputBuffer::inputThreadBody() {
        throw;
        }*/
 
-    for (firstPacket = nextPacket = 0; nextPacket < maxNrPacketsInBuffer; nextPacket ++) {
+    for (firstPacket = nextPacket = 0; nextPacket < nrPackets; nextPacket ++) {
       const VDIFHeader* header = reinterpret_cast<const VDIFHeader*>(packetBuffer[nextPacket].data());
-      timeStamp = header->timestamp(ps.sampleRate());
+      timeStamp = TimeStamp(header->timestamp(ps.sampleRate()), ps.clockSpeed());
 
       if (timeStamp != expectedTimeStamp) {
         if (firstPacket < nextPacket) {
