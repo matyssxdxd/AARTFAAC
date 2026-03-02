@@ -277,31 +277,31 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     uint64_t timeOffset = time - ps.startTime();
     uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
     uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
-    uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N - 1);
+    uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N + 1);
 
     float hostFracDelays[2][2];
 
     double delayInSamples = ps.delays()[i] * ps.sampleRate();
-    int integerDelay = static_cast<int>(std::floor(delayInSamples));
+    int integerDelay = static_cast<int>(std::floor(delayInSamples + 0.5));
     double fractionalDelayInSamples = delayInSamples - integerDelay;
     float fractionalDelay = static_cast<float>(fractionalDelayInSamples / ps.sampleRate());
 
-    float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / ps.nrSamplesPerChannel());
+    float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / (ps.nrSamplesPerChannel() * 2));
 
     hostFracDelays[1][0] = -fractionalDelay;
     hostFracDelays[1][1] = -delayRate;
     hostFracDelays[0][0] = 0;
     hostFracDelays[0][1] = 0;
 
-    std::cout << i << std::endl;
-    std::cout << "devFracDelays: station0=(" << hostFracDelays[0][0] << "," << hostFracDelays[0][1] 
-      << ") station1=(" << hostFracDelays[1][0] << "," << hostFracDelays[1][1] << ")" << std::endl;
+    std::cout << "N=" << N;
+    std::cout << "ps.delays()[" << i << "]=" << ps.delays()[i]
+          << " sampleRate=" << ps.sampleRate()
+          << " delayInSamples=" << (ps.delays()[i] * ps.sampleRate())
+          << " integerDelay=" << integerDelay
+          << " fractionalDelayInSamples=" << fractionalDelayInSamples
+          << std::endl;
 
     hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2);
-
-    double subbandCenterFrequency = ps.centerFrequencies()[subband];
-
-    std::cout << "subbandCenterFrequency=" << subbandCenterFrequency << std::endl;
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 
@@ -344,19 +344,13 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
-    if ((subband + 1) % 2 == 0) {
-      filter.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer,
-          devFracDelays,
-          subbandCenterFrequency);
-    } else {
-      filterOdd.launchAsync(executeStream,
-          devCorrectedData,
-          devInputBuffer,
-          devFracDelays,
-          subbandCenterFrequency);
+    const double subbandCenter = ps.centerFrequencies()[subband]; // + 24e6;
+    const bool mirrored = ((subband + 1) % 2) != 0;
 
+    if (!mirrored) {
+      filter.launchAsync(executeStream, devCorrectedData, devInputBuffer, devFracDelays, subbandCenter);
+    } else {
+      filterOdd.launchAsync(executeStream, devCorrectedData, devInputBuffer, devFracDelays, subbandCenter);
     }
 
     executeStream.record(inputDataFree);

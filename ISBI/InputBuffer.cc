@@ -216,7 +216,7 @@ void InputBuffer::inputThreadBody() {
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
-  TimeStamp timeStamp(0, ps.clockSpeed()); 
+  TimeStamp timeStamp(vdifStream.getFirstTimestamp(), ps.clockSpeed()); 
 
 #if defined USE_RECVMMSG
   struct iovec   iovecs[maxNrPacketsInBuffer];
@@ -373,8 +373,8 @@ SparseSet<TimeStamp> InputBuffer::getCurrentValidData(const TimeStamp &earlyStar
 
 void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subband, SparseSet<TimeStamp> &validData)
 {
-  TimeStamp earlyStartTime   = startTime - nrHistorySamples;
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
+  TimeStamp earlyStartTime   = startTime - nrHistorySamples - ps.maxDelay();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() + ps.maxDelay();
 
   validData = getCurrentValidData(earlyStartTime, endTime);
   SparseSet<TimeStamp> flaggedData = validData.invert(earlyStartTime, endTime);
@@ -385,10 +385,10 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
     for (unsigned timeIndex = it.begin % nrRingBufferSamplesPerSubband, timeEndIndex = it.end % nrRingBufferSamplesPerSubband; timeIndex != timeEndIndex;) {
       for (unsigned pol = 0; pol < ps.nrPolarizations(); pol++) {
         uncached_memclear(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin(), size);
-
-        if (++ timeIndex == nrRingBufferSamplesPerSubband)
-          timeIndex = 0;
       }
+
+      if (++ timeIndex == nrRingBufferSamplesPerSubband)
+        timeIndex = 0;
     }
   }
 
@@ -404,7 +404,7 @@ void InputBuffer::fillInMissingSamples(const TimeStamp &startTime, unsigned subb
 void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 {
   TimeStamp earlyStartTime   = startTime - nrHistorySamples - ps.maxDelay();
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() - ps.maxDelay();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() + ps.maxDelay();
 
   readerAndWriterSynchronization.startRead(earlyStartTime, endTime);
 }
@@ -412,9 +412,9 @@ void InputBuffer::startReadTransaction(const TimeStamp &startTime)
 
 void InputBuffer::endReadTransaction(const TimeStamp &startTime)
 {
-  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter();
+  TimeStamp endTime          = startTime + ps.nrSamplesPerSubbandBeforeFilter() + ps.maxDelay();
 
-  readerAndWriterSynchronization.finishedRead(endTime - nrHistorySamples - 20);
+  readerAndWriterSynchronization.finishedRead(endTime);
 }
 
 
@@ -422,6 +422,4 @@ void InputBuffer::caughtSignal()
 {
   signalCaught = true;
 }
-
-
 

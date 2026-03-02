@@ -42,6 +42,7 @@ void printSettings(const ISBI_Parset &ps){
   std::clog<< "center frequencies = ";
   for (int i = 0; i < ps.centerFrequencies().size(); i++)
     std::clog << ps.centerFrequencies()[i] << " ";
+  std::clog << (size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter() * ps.nrBytesPerRealSample() << std::endl;
   std::clog << std::endl;
 }
 
