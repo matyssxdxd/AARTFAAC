@@ -272,32 +272,55 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
     uint64_t timeOffset = time - ps.startTime();
     uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-    uint32_t N = static_cast<uint32_t>(totalTimeRange / blockSize);
-    uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), N + 1);
+    uint32_t totalBlocks = static_cast<uint32_t>(totalTimeRange / blockSize);
+    uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), totalBlocks);
 
-    float hostFracDelays[2][2];
+    float hostDelays[2][2];
 
-    double delayInSamples = ps.delays()[i] * ps.sampleRate();
-    int integerDelay = static_cast<int>(std::floor(delayInSamples + 0.5));
-    double fractionalDelayInSamples = delayInSamples - integerDelay;
-    float fractionalDelay = static_cast<float>(fractionalDelayInSamples / ps.sampleRate());
+    const double Fs = (double)ps.sampleRate();
+    const double N  = (double)ps.nrSamplesPerChannel();
 
-    float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / (ps.nrSamplesPerChannel() * 2));
+    auto fracDelay = [&](double delaySec) {
+      double k = std::floor(delaySec * Fs + 0.5);
+      return delaySec - k / Fs;
+    };
 
-    hostFracDelays[1][0] = -fractionalDelay;
-    hostFracDelays[1][1] = -delayRate;
-    hostFracDelays[0][0] = 0;
-    hostFracDelays[0][1] = 0;
+    size_t delayCount = ps.delays().size();
 
-    std::cout << "N=" << N;
-    std::cout << "ps.delays()[" << i << "]=" << ps.delays()[i]
-          << " sampleRate=" << ps.sampleRate()
-          << " delayInSamples=" << (ps.delays()[i] * ps.sampleRate())
-          << " integerDelay=" << integerDelay
-          << " fractionalDelayInSamples=" << fractionalDelayInSamples
-          << std::endl;
+    size_t idxAtStart = i;
+    size_t idxAtEnd = i + 1;
 
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostFracDelays, sizeof(float) * 2 * 2);
+    if (idxAtStart >= delayCount) {
+      std::cerr << "WARNING: delay index i (" << idxAtStart
+                << ") out of range, using last valid value\n";
+      idxAtStart = i - 1;
+    }
+
+    if (idxAtEnd >= delayCount) {
+      std::cerr << "WARNING: delay index i + 1 (" << idxAtEnd
+                << ") out of range, using the same value as i\n";
+      idxAtStart = i;
+    }
+
+    double delayAtStart = ps.delays()[idxAtStart];
+    double delayAtEnd   = ps.delays()[idxAtEnd];
+
+    double d0 = fracDelay(delayAtStart);
+    double dN = fracDelay(delayAtEnd);
+
+    double d1 = (dN - d0) / N;
+
+    hostDelays[0][0] = 0.0f;
+    hostDelays[0][1] = 0.0f;
+    hostDelays[1][0] = -(float)d0;
+    hostDelays[1][1] = -(float)d1;
+
+    std::cout << "block=" << i 
+              << " d0=" << -(float)d0
+              << " d1=" << -(float)d1
+              << std::endl;
+
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostDelays, sizeof(float) * 2 * 2);
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 
@@ -314,7 +337,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
-    const double subbandCenter = ps.centerFrequencies()[subband]; // + 24e6;
+    const double subbandCenter = ps.centerFrequencies()[subband];
     const bool mirrored = ((subband + 1) % 2) != 0;
 
     if (!mirrored) {
