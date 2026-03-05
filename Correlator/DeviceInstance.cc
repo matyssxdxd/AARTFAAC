@@ -253,23 +253,19 @@ void DeviceInstance::doSubband(const TimeStamp &time,
 
 
 void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
-				   unsigned subband,
-				   std::function<void (cu::Stream &, cu::DeviceMemory &devInputBuffer, PerformanceCounter &)> &enqueueHostToDeviceTransfer,
-				   const MultiArrayHostBuffer<char, 4> &hostInputBuffer,
-				   const MultiArrayHostBuffer<float, 3> &hostDelaysAtBegin,
-				   const MultiArrayHostBuffer<float, 3> &hostDelaysAfterEnd,
-				   MultiArrayHostBuffer<std::complex<float>, 3> &hostVisibilities,
-				   unsigned startIndex
-				  )
-{
+                                                   unsigned subband,
+				                   std::function<void (cu::Stream &, cu::DeviceMemory &devInputBuffer, PerformanceCounter &)> &enqueueHostToDeviceTransfer,
+				                   const MultiArrayHostBuffer<char, 4> &hostInputBuffer,
+				                   const MultiArrayHostBuffer<float, 3> &hostDelaysAtBegin,
+				                   const MultiArrayHostBuffer<float, 3> &hostDelaysAfterEnd,
+				                   MultiArrayHostBuffer<std::complex<float>, 3> &hostVisibilities,
+				                   unsigned startIndex) {
   context.setCurrent();
 
   cu::Event inputTransferReady, computeReady, visibilityTransferReady;
 
   {
     std::lock_guard<std::mutex> lock(enqueueMutex);
-
-    // TODO: input samples and delays could be copied at different times.
 
     hostToDeviceStream.wait(inputDataFree);
 
@@ -305,32 +301,6 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 
-#if 0
-    uint32_t n = ps.nrSamplesPerSubbandBeforeFilter() + (NR_TAPS - 1) * ps.nrChannelsPerSubband();
-    size_t nrBytesPerTime = ps.nrBytesPerRealSample();
-
-    MultiArrayHostBuffer<char, 4> hostData(boost::extents
-        [ps.nrStations()]
-        [ps.nrPolarizations()]
-        [n]
-        [nrBytesPerTime]);
-
-    executeStream.memcpyDtoHAsync(hostData.origin(), devInputBuffer, 
-        (size_t) ps.nrStations() * ps.nrPolarizations() * n * nrBytesPerTime);
-    executeStream.synchronize();
-
-    for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization++) {
-      for (unsigned sample = 0; sample < n; sample++) {
-        int32_t station_0 = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(&hostData[0][polarization][sample][0]));
-        int32_t station_1 = static_cast<int32_t>(*reinterpret_cast<const int8_t*>(&hostData[1][polarization][sample][0]));
-
-        if (station_0 != station_1)
-          std::cout << "Polarization: " << polarization << " Sample: " << sample << " Station_0: " << station_0 << " Station_1: " << station_1 << std::endl;
-
-      }
-    }
-#endif
-
     hostToDeviceStream.record(inputTransferReady);
 
 #if 0 && defined CL_DEVICE_TOPOLOGY_AMD
@@ -355,36 +325,6 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.record(inputDataFree);
     executeStream.wait(visibilityDataFree[currentVisibilityBuffer]);
-
-#if 0
-    unsigned nrTimesPerBlock = 128 / ps.nrBitsPerSample();
-    MultiArrayHostBuffer<std::complex<half>, 5> hostCorrectedData(boost::extents[ps.nrOutputChannelsPerSubband()][ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() / nrTimesPerBlock][ps.nrStations()][ps.nrPolarizations()][nrTimesPerBlock]);
-    executeStream.memcpyDtoHAsync(hostCorrectedData.origin(), devCorrectedData, (size_t) ps.nrOutputChannelsPerSubband() * ps.nrSamplesPerChannelAfterFilter() * ps.channelIntegrationFactor() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
-    executeStream.synchronize();
-
-    std::cout << "[outputChannel][timeMajor][receiver][polarization][timeMinor]" << std::endl;
-
-    for (unsigned outputChannel = 0; outputChannel < ps.nrOutputChannelsPerSubband(); outputChannel ++)
-      for (unsigned timeMajor = 0; timeMajor < 500; timeMajor ++)
-        // for (unsigned receiver = 0; receiver < ps.nrStations(); receiver ++)
-        for (unsigned polarization = 0; polarization < ps.nrPolarizations(); polarization ++)
-          for (unsigned timeMinor = 0; timeMinor < nrTimesPerBlock; timeMinor ++) {
-            std::complex<half> sample_1 = hostCorrectedData[outputChannel][timeMajor][0][polarization][timeMinor];
-            std::complex<half> sample_2 = hostCorrectedData[outputChannel][timeMajor][1][polarization][timeMinor];
-
-              std::cout << "COR[" << outputChannel << "][" << timeMajor << "][" << 0 
-                << "][" << polarization << "][" << timeMinor << "] = ("
-                << static_cast<float>(sample_1.real()) << ","
-                << static_cast<float>(sample_1.imag()) << ")";
-
-              std::cout << "=== COR[" << outputChannel << "][" << timeMajor << "][" << 1 
-                << "][" << polarization << "][" << timeMinor << "] = ("
-                << static_cast<float>(sample_2.real()) << ","
-                << static_cast<float>(sample_2.imag()) << ")" << std::endl;
-          }
-
-    exit(0);
-#endif
 
     cu::DeviceMemory devCorrectedDataChannel0skipped(static_cast<CUdeviceptr>(devCorrectedData) + ps.nrSamplesPerChannel() * ps.nrStations() * ps.nrPolarizations() * ps.nrBytesPerComplexSample());
     tcc.launchAsync(executeStream, devVisibilities[currentVisibilityBuffer], devCorrectedDataChannel0skipped, pipeline.correlateCounter);
@@ -413,19 +353,6 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
     currentVisibilityBuffer = 0;
 
   visibilityTransferReady.synchronize();
-
-#if 0
-  for (unsigned baseline = 0, count = 0; baseline < ps.nrBaselines(); baseline ++)
-    for (unsigned channel = 0; channel < ps.nrOutputChannelsPerSubband(); channel ++)
-      for (unsigned polarization = 0; polarization < ps.nrVisibilityPolarizations(); polarization ++)
-	//if (hostVisibilities[baseline][channel][polarization] != hostVisibilities[channel][baseline][polarization])
-	if (hostVisibilities[baseline][channel][polarization] != 0.0f) {
-	  std::cout << "vis[" << baseline << "][" << channel << "][" << polarization << "] = " << hostVisibilities[baseline][channel][polarization] << ' ' << conj(hostVisibilities[baseline][channel][polarization]) << std::endl;
-
-	  if (++ count == 10000)
-	    exit(0);
-	}
-#endif
 }
 
 

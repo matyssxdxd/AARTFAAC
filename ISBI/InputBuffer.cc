@@ -24,6 +24,18 @@
 
 volatile std::sig_atomic_t InputBuffer::signalCaught = false;
 
+namespace {
+  const std::array<int8_t, 256 * 4> decodeLUT = [] {
+    std::array<int8_t, 256 * 4> lut{};
+    for (unsigned byte = 0; byte < 256; ++byte) {
+      lut[4 * byte + 0] = DECODER_LEVEL_2BIT[(byte >> 0) & 0x3];
+      lut[4 * byte + 1] = DECODER_LEVEL_2BIT[(byte >> 2) & 0x3];
+      lut[4 * byte + 2] = DECODER_LEVEL_2BIT[(byte >> 4) & 0x3];
+      lut[4 * byte + 3] = DECODER_LEVEL_2BIT[(byte >> 6) & 0x3];
+    }
+    return lut;
+  } ();
+}
 
 void uncached_memcpy(void *__restrict dst, const void *__restrict src, size_t size)
 {
@@ -157,22 +169,31 @@ void InputBuffer::handleConsecutivePackets(std::array<std::array<char, maxPacket
 
     readerAndWriterSynchronization.startWrite(beginTime, endTime);
 
-    static thread_local std::vector<int8_t> decoded;
+    std::vector<int8_t> decoded;
     decoded.reserve(header->samplesPerFrame() * header->numberOfChannels());
 
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
       const VDIFHeader* packetHeader = reinterpret_cast<const VDIFHeader*>(packetBuffer[packet].data());
-      decoded.resize(packetHeader->samplesPerFrame() * packetHeader->numberOfChannels());
-      packetHeader->decode2bit(packetBuffer[packet], decoded);
+      const uint8_t *payload = reinterpret_cast<const uint8_t*>(packetBuffer[packet].data() + packetHeader->headerSize());
+      const size_t payloadBytes = packetHeader->dataSize();
+      const unsigned nchan = packetHeader->numberOfChannels();
 
       for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
+        const size_t sampleBase = static_cast<size_t>(sample) * nchan;
         for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
+          const unsigned mappingBase = subband * ps.nrPolarizations();
           for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
-            unsigned mappedIndex = ps.channelMapping()[2 * subband + pol];
-            size_t dataIndex = sample * packetHeader->numberOfChannels() + mappedIndex;
+            const unsigned mappedIndex = ps.channelMapping()[mappingBase + pol];
+            const size_t dataIndex = sampleBase + mappedIndex;
+            const size_t byteIndex = dataIndex >> 2;
+            int8_t value = 0;
+            if (byteIndex < payloadBytes) {
+              const size_t lutIndex = static_cast<size_t>(payload[byteIndex]) * 4 + (dataIndex & 0x3);
+              value = decodeLUT[lutIndex]; 
+            }
 
             int8_t* dest = reinterpret_cast<int8_t*>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin());
-            *dest = decoded[dataIndex];
+            *dest = value;
           }
         }
         if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
@@ -213,7 +234,7 @@ void InputBuffer::inputThreadBody() {
           << vdifStream.getFirstTimestamp() << " samples"
           << " vs ps.startTime()=" << ps.startTime() << std::endl;
 
-  alignas(16) std::array<std::array<char, maxPacketSize>, maxNrPacketsInBuffer> packetBuffer;
+  std::array<std::array<char, maxPacketSize>, maxNrPacketsInBuffer> packetBuffer;
 
   bool printedImpossibleTimeStampWarning = false;
   unsigned nrPackets, firstPacket, nextPacket;
