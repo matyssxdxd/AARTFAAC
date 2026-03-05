@@ -61,6 +61,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     	.nrTaps = 16,
         .sampleFormat = tcc::FilterArgs::Format::fp32
     };
+    filterArgs.firFilter = std::nullopt;
 
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
@@ -101,6 +102,7 @@ DeviceInstance::DeviceInstance(CorrelatorPipeline &pipeline, unsigned deviceNr)
     	.nrTaps = 16,
         .sampleFormat = tcc::FilterArgs::Format::fp32
     };
+    filterArgs.firFilter = std::nullopt;
 
     filterArgs.fft = tcc::FilterArgs::FFT {
     	.sampleFormat = tcc::FilterArgs::Format::fp32,
@@ -284,8 +286,8 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     float delayRate = static_cast<float>((ps.delays()[i + 1] - ps.delays()[i]) / (ps.nrSamplesPerChannel() * 2));
 
-    hostFracDelays[1][0] = -fractionalDelay;
-    hostFracDelays[1][1] = -delayRate;
+    hostFracDelays[1][0] = fractionalDelay;
+    hostFracDelays[1][1] = delayRate;
     hostFracDelays[0][0] = 0;
     hostFracDelays[0][1] = 0;
 

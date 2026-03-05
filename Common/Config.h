@@ -11,7 +11,7 @@
 //#define USE_PHI_CORRELATOR
 #define USE_2X2
 
-#define NR_TAPS			16
+#define NR_TAPS			1
 #define NR_STATION_FILTER_TAPS	16
 #define HAVE_FFTW3
 #undef CREATE_BACKTRACE_ON_EXCEPTION
