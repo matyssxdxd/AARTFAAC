@@ -34,29 +34,26 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   if (!config.is_open()) {
     throw Error("Could not open configuration file: " + configFile);
   }
+
+  for (int station = 0; station < nrStations(); ++station) {
+    uint32_t n;
+    config.read(reinterpret_cast<char*>(&n), sizeof(uint32_t));
+
+    std::map<int64_t, double> stationDelays;
+
+    for (uint32_t i = 0; i < n; ++i) {
+      int64_t ts;
+      double delay;
+
+      config.read(reinterpret_cast<char*>(&ts), sizeof(int64_t));
+      config.read(reinterpret_cast<char*>(&delay), sizeof(double));
+
+      stationDelays[ts] = delay;
+    }
+  
+    _delays.push_back(std::move(stationDelays));
+  }
  
-  uint32_t delays_1_len, delays_2_len;
-
-  config.read(reinterpret_cast<char*>(&delays_1_len), sizeof(uint32_t));
-  if (config.gcount() != sizeof(uint32_t)) {
-    throw Error("Failed to read delays_1_len from configuration file");
-  }
-  std::vector<double> delays_1(delays_1_len, 0);
-  config.read(reinterpret_cast<char*>(delays_1.data()), delays_1_len * sizeof(double));
-  if (config.gcount() != delays_1_len * sizeof(double)) {
-    throw Error("Failed to read delays_1 data from configuration file");
-  }
-
-  config.read(reinterpret_cast<char*>(&delays_2_len), sizeof(uint32_t));
-  if (config.gcount() != sizeof(uint32_t)) {
-    throw Error("Failed to read delays_2_len from configuration file");
-  }
-
-  std::vector<double> delays_2(delays_2_len, 0);
-  config.read(reinterpret_cast<char*>(delays_2.data()), delays_2_len * sizeof(double));
-  if (config.gcount() != delays_2_len * sizeof(double)) {
-    throw Error("Failed to read delays_2 data from configuration file");
-  }
  
   uint32_t num_frequencies;
 
@@ -85,16 +82,6 @@ CorrelatorParset::CorrelatorParset(int argc, char **argv, bool throwExceptionOnU
   }
 
   config.close();
-  
-  if (delays_1_len != delays_2_len) {
-    throw Error("delays_1 and delays_2 must have the same length");
-  }
-
-  _delays = std::vector<double>(delays_1_len, 0);
-  for (size_t i = 0; i < delays_1_len; i++) {
-    double geometricDelay = delays_2[i] - delays_1[i];
-    _delays[i] = geometricDelay;
-  }
 
   if (throwExceptionOnUnmatchedParameter && toPassFurther.size() > 0)
     throw Error(std::string("unrecognized argument \'") + toPassFurther[0] + '\'');

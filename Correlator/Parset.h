@@ -18,7 +18,7 @@ class CorrelatorParset : public Parset
 
     virtual std::vector<std::string> compileOptions() const;
 
-    std::vector<double> delays() const { return _delays; }
+    std::vector<std::map<std::int64_t, double>> delays() const { return _delays; }
     std::vector<double> centerFrequencies() const { return _centerFrequencies; }
     std::vector<uint32_t> channelMapping() const { return _channelMapping; }
 
@@ -27,7 +27,7 @@ class CorrelatorParset : public Parset
     unsigned _nrVisibilityPolarizations;
     unsigned _nrOutputChannelsPerSubband;
 
-    std::vector<double> _delays;
+    std::vector<std::map<std::int64_t, double>> _delays;
     std::vector<double> _centerFrequencies;
     std::vector<uint32_t> _channelMapping;
 };

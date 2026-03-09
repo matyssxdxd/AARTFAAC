@@ -34,8 +34,7 @@ void printSettings(const ISBI_Parset &ps){
   std::clog << "intended stop time = " << ps.stopTime() << std::endl;
   std::clog << "sample rate = " << ps.sampleRate() << std::endl;
   std::clog << "subband bandwidth = " << ps.subbandBandwidth() << std::endl;
-  std::clog << "delay count = " << ps.delays().size() << std::endl;
-  std::clog << "max delay (samples) = " << ps.maxDelay() << std::endl;
+  std::clog << "max delay = " << ps.maxDelay() << std::endl;
   std::clog << "mapping = ";
   for (int i = 0; i < ps.channelMapping().size(); i++)
     std::clog << ps.channelMapping()[i] << " ";
@@ -48,25 +47,25 @@ void printSettings(const ISBI_Parset &ps){
 
 
 int main(int argc, char **argv){
-    
-    #if !defined CREATE_BACKTRACE_ON_EXCEPTION
-    try {
-    #endif
+
+#if !defined CREATE_BACKTRACE_ON_EXCEPTION
+  try {
+#endif
     cu::init();
     cu::Device device(0);
     cu::Context context(CU_CTX_SCHED_BLOCKING_SYNC, device);
 
-    #if defined __linux__
+#if defined __linux__
     setScheduler(SCHED_BATCH, 0);
-    #endif
-    
+#endif
+
     printArgv(argc, argv);
     ISBI_Parset ps(argc, argv);
     printSettings(ps);
 
     ISBI_CorrelatorPipeline(ps).doWork();
-      
-    #if !defined CREATE_BACKTRACE_ON_EXCEPTION
+
+#if !defined CREATE_BACKTRACE_ON_EXCEPTION
   } catch (cu::Error &error) {
     std::cerr << "caught cu::Error: " << error.what() << std::endl;
     exit(1);
@@ -75,16 +74,6 @@ int main(int argc, char **argv){
     exit(1);
   }
 #endif
-    
-    
-    
-    //AARTFAAC/AARTFAAC -p1 -n288 -t768 -c256 -C17 -b16 -s8 -m15 -D '2024-03-17 03:36:46' -r4 -g0 -q1 -R0 -i /mnt/VLBI/data/b004/b004_ib_no0001.m5a,/mnt/VLBI/data/b004/b004_ir_no0001.m5a -o null:
-    
-    //inputSection;    
-   //ISBI/ISBI -p1 -n288 -t768 -c256 -C17 -b16 -s8 -m15 -D '2024-03-17 03:36:46' -r4 -g0 -q1 -R0 -i /mnt/VLBI/data/b004/b004_ib_no0001.m5a,/mnt/VLBI/data/b004/b004_ir_no0001.m5a -o null:
 
-
-//    TZ=UTC ISBI/ISBI -p1 -n2 -t768 -c256 -C16 -b16 -s8 -m15 -D '2024-02-20 04:35:19' -r180 -g0 -q1 -R0 -i /var/scratch/jsteinbe/data/aa1_ib_no0002.m5a,/var/scratch/jsteinbe/data/aa1_ir_no0002.m5a -o /var/scratch/mpurvins/a1.out,/var/scratch/mpurvins/a2.out,/var/scratch/mpurvins/a3.out,/var/scratch/mpurvins/a4.out,/var/scratch/mpurvins/a5.out,/var/scratch/mpurvins/a6.out,/var/scratch/mpurvins/a7.out,/var/scratch/mpurvins/a8.out
   return 0;
 }
-

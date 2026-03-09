@@ -230,7 +230,8 @@ void InputBuffer::inputThreadBody() {
   VDIFStream vdifStream(ps.inputDescriptors()[myFirstStation], ps.sampleRate());
   assert(&vdifStream != nullptr);
 
-  std::cout << "Station " << myFirstStation << " first VDIF timestamp: "
+#pragma omp critical (clog)
+  std::clog << "Station " << myFirstStation << " first VDIF timestamp: "
           << vdifStream.getFirstTimestamp() << " samples"
           << " vs ps.startTime()=" << ps.startTime() << std::endl;
 

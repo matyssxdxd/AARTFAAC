@@ -6,6 +6,7 @@
 #include <exception>
 #include <string>
 #include <vector>
+#include <map>
 
 #include <boost/lexical_cast.hpp>
 

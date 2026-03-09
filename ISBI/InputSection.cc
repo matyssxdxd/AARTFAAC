@@ -6,8 +6,6 @@
 
 #include <fstream>
 
-#define ISBI_DELAYS
-
 InputSection::InputSection(const ISBI_Parset &ps)
 :
   ps(ps),
@@ -26,7 +24,7 @@ InputSection::InputSection(const ISBI_Parset &ps)
 
     for (unsigned stationSet = 0; stationSet < ps.inputDescriptors().size(); stationSet ++) {
       std::unique_ptr<BoundThread> bt(ps.inputBufferNodes().size() > 0 ? new BoundThread(ps.allowedCPUs(ps.inputBufferNodes()[stationSet])) : nullptr);
-      buffers.emplace_back(new InputBuffer(ps, &hostRingBuffers[0], 1, ps.nrSubbands(), stationSet, 1, nrTimesPerPacket));
+      buffers.emplace_back(new InputBuffer(ps, &hostRingBuffers[0], 0, ps.nrSubbands(), stationSet, 1, nrTimesPerPacket));
     }
 
     return std::move(buffers);
@@ -47,26 +45,30 @@ InputSection::~InputSection()
 
 
 void InputSection::enqueueHostToDeviceCopy(cu::Stream &stream, cu::DeviceMemory &devBuffer, PerformanceCounter &counter, const TimeStamp &startTime, unsigned subband) {
-  uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
-  uint64_t timeOffset = startTime - ps.startTime();
-  uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-  uint32_t totalBlocks = static_cast<uint32_t>(totalTimeRange / blockSize);
-  uint32_t delayIdx = std::min(static_cast<uint32_t>((timeOffset / blockSize)), totalBlocks);
+  int referenceStation = 0;
+  auto getDelayAt = [&](const std::map<int64_t, double>& delays, int64_t timestamp) {
+    auto it = delays.find(timestamp);
+    if (it == delays.end()) {
+      throw std::runtime_error("Timestamp not found in delay map");
+    }
 
-  size_t delayCount = ps.delays().size();
-
-  if (delayIdx >= delayCount) {
-    std::cerr << "WARNING: delay index i (" << delayIdx 
-      << ") out of range, using last valid value\n";
-    delayIdx = delayIdx - 1;
-  }
+    return it->second;
+  };
 
   for (unsigned station = 0; station < ps.nrStations(); station++) {
-    int delay = 0;
-    if (station == 1) {
-      double Fs = (double)ps.sampleRate();
-      delay = static_cast<int>(std::floor(ps.delays()[delayIdx] * Fs + 0.5));
+    double delayAtStart  = getDelayAt(ps.delays()[station], (int64_t)startTime);
+
+    if (station != referenceStation) {
+      double delayAtStartR = getDelayAt(ps.delays()[referenceStation], (int64_t)startTime);
+      delayAtStart -= delayAtStartR;
+    } else {
+      delayAtStart = 0.0;
     }
+
+    double Fs = (double)ps.sampleRate();
+    int delay = static_cast<int>(std::floor(delayAtStart * Fs + 0.5));
+
+    std::cout << "inputSection=" << delay << std::endl;
 
     unsigned nrHistorySamples = (NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter();
 

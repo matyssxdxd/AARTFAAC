@@ -269,14 +269,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     hostToDeviceStream.wait(inputDataFree);
 
-    uint32_t blockSize = ps.nrSamplesPerSubbandBeforeFilter();
-    uint64_t timeOffset = time - ps.startTime();
-    uint64_t totalTimeRange = ps.stopTime() - ps.startTime();
-    uint32_t totalBlocks = static_cast<uint32_t>(totalTimeRange / blockSize);
-    uint32_t i = std::min(static_cast<uint32_t>((timeOffset / blockSize)), totalBlocks);
-
-    float hostDelays[2][2];
-
+    int referenceStation = 0;
     const double Fs = (double)ps.sampleRate();
     const double N  = (double)ps.nrSamplesPerChannel();
 
@@ -285,42 +278,50 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       return delaySec - k / Fs;
     };
 
-    size_t delayCount = ps.delays().size();
+    std::cout << "time=" << time << std::endl;
 
-    size_t idxAtStart = i;
-    size_t idxAtEnd = i + 1;
+    auto getDelayAt = [&](const std::map<int64_t, double>& delays, int64_t timestamp) {
+        auto it = delays.find(timestamp);
+        if (it == delays.end()) {
+          throw std::runtime_error("Timestamp not found in delay map");
+        }
 
-    if (idxAtStart >= delayCount) {
-      std::cerr << "WARNING: delay index i (" << idxAtStart
-                << ") out of range, using last valid value\n";
-      idxAtStart = i - 1;
+        return it->second;
+     };
+
+    float hostDelays[ps.nrStations()][2];
+
+    for (std::size_t station = 0; station < ps.nrStations(); ++station) {
+      double delayAtStart  = getDelayAt(ps.delays()[station], (int64_t)time);
+      double delayAtEnd    = getDelayAt(ps.delays()[station], (int64_t)time + ps.nrSamplesPerSubbandBeforeFilter());
+
+
+    if (station != referenceStation) {
+      double delayAtStartR = getDelayAt(ps.delays()[referenceStation], (int64_t)time);
+      double delayAtEndR   = getDelayAt(ps.delays()[referenceStation], (int64_t)time + ps.nrSamplesPerSubbandBeforeFilter());
+      delayAtStart -= delayAtStartR;
+      delayAtEnd -= delayAtEndR;
+    } else {
+      delayAtStart = 0.0;
+      delayAtEnd = 0.0;
     }
 
-    if (idxAtEnd >= delayCount) {
-      std::cerr << "WARNING: delay index i + 1 (" << idxAtEnd
-                << ") out of range, using the same value as i\n";
-      idxAtStart = i;
+      double d0 = fracDelay(delayAtStart);
+      double dN = fracDelay(delayAtEnd);
+  
+      double d1 = (dN - d0) / N;
+  
+      hostDelays[station][0] = -(float)d0;
+      hostDelays[station][1] = -(float)d1;
+  
+      std::cout << "station=" << station 
+        << " d0=" << -(float)d0
+        << " d1=" << -(float)d1
+        << std::endl;
+  
     }
 
-    double delayAtStart = ps.delays()[idxAtStart];
-    double delayAtEnd   = ps.delays()[idxAtEnd];
-
-    double d0 = fracDelay(delayAtStart);
-    double dN = fracDelay(delayAtEnd);
-
-    double d1 = (dN - d0) / N;
-
-    hostDelays[0][0] = 0.0f;
-    hostDelays[0][1] = 0.0f;
-    hostDelays[1][0] = -(float)d0;
-    hostDelays[1][1] = -(float)d1;
-
-    std::cout << "block=" << i 
-              << " d0=" << -(float)d0
-              << " d1=" << -(float)d1
-              << std::endl;
-
-    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostDelays, sizeof(float) * 2 * 2);
+    hostToDeviceStream.memcpyHtoDAsync(devFracDelays, hostDelays, sizeof(float) * ps.nrStations() * 2);
      
     enqueueHostToDeviceTransfer(hostToDeviceStream, devInputBuffer, pipeline.samplesCounter);
 

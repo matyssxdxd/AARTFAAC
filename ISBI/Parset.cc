@@ -25,8 +25,7 @@ std::vector<std::string> AARTFAAC_Parset::getDescriptors(const std::string &arg)
 ISBI_Parset::ISBI_Parset(int argc, char **argv)
 :
   CorrelatorParset(argc, argv, false),
-  // _nrRingBufferSamplesPerSubband(128015360),
-  _nrRingBufferSamplesPerSubband(256030720),
+  _nrRingBufferSamplesPerSubband(128015360),
   _visibilitiesIntegration(1),
   _maxDelaySamples(0)
 {
@@ -64,10 +63,13 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
     throw Error("output buffer node list has unexpected size");
 #endif
 
-  for (double delaySeconds : delays()) {
-    int delaySamples = static_cast<int>(std::ceil(std::abs(delaySeconds * sampleRate())));
-    _maxDelaySamples = std::max(_maxDelaySamples, delaySamples);
-  }
+  // for (std::size_t station = 0; station < nrStations(); ++station) {
+  //   for (const auto& [timestamp, delay] : delays()[station]) {
+  //     int delaySamples = static_cast<int>(std::ceil(std::abs(delay * sampleRate())));
+  //     _maxDelaySamples = std::max(_maxDelaySamples, delaySamples);
+  //   }
+  // }
+
 }
 
 

@@ -26,12 +26,6 @@ VDIFStream::VDIFStream(std::string inputFile, double sampleRate)
     file.clear();
     file.seekg(static_cast<off_t>(numberOfFrames) * (headerSize + dataSize), std::ios::beg);
     if (!file) { throw std::runtime_error("Failed to seek to the first frame!"); }
-
-    std::cout << "VDIF data size: " << dataSize << std::endl;
-    std::cout << "VDIF header size: " << headerSize << std::endl;
-    std::cout << "Sample rate: " << sampleRate << std::endl;
-    std::cout << "VDIF samples per frame: " << firstHeader.samplesPerFrame() << std::endl;
-    std::cout << "First timestamp: " << firstHeader.timestamp(sampleRate) << std::endl;
   }
 
 bool VDIFStream::readFirstHeader() {
@@ -126,8 +120,9 @@ int64_t VDIFHeader::timestamp(double sample_rate) const {
     auto time_point = std::chrono::system_clock::from_time_t(time);
 
     auto exact_time = time_point + std::chrono::seconds(sec_from_epoch);
-    return std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * sample_rate 
-           + dataframe_in_second * samplesPerFrame();
+    int64_t out =  static_cast<int64_t>(std::chrono::duration_cast<std::chrono::seconds>(exact_time.time_since_epoch()).count() * sample_rate 
+           + dataframe_in_second * samplesPerFrame());
+    return out;
 }
 
 void VDIFHeader::decode2bit(const std::array<char, maxPacketSize>& frame,
