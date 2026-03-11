@@ -339,7 +339,7 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
-    const double subbandCenter = ps.centerFrequencies()[subband] + 24e6;
+    const double subbandCenter = ps.centerFrequencies()[subband];
     const bool mirrored = ((subband + 1) % 2) != 0;
     std::cout << subband << " " << mirrored << std::endl;
 
