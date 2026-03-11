@@ -5,6 +5,7 @@
 #include "Common/TimeStamp.h"
 
 #include <fstream>
+#include <array>
 #include <complex>
 #include <vector>
 #include <ctime>
@@ -72,6 +73,7 @@ struct VDIFHeader {
 class VDIFStream : public Stream {
   private:
     std::ifstream file;
+    std::vector<char> ioBuffer;
 
     VDIFHeader firstHeader, currentHeader;
 

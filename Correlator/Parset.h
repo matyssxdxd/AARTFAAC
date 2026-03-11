@@ -18,9 +18,9 @@ class CorrelatorParset : public Parset
 
     virtual std::vector<std::string> compileOptions() const;
 
-    std::vector<std::map<std::int64_t, double>> delays() const { return _delays; }
-    std::vector<double> centerFrequencies() const { return _centerFrequencies; }
-    std::vector<uint32_t> channelMapping() const { return _channelMapping; }
+    const std::vector<std::map<std::int64_t, double>> &delays() const { return _delays; }
+    const std::vector<double> &centerFrequencies() const { return _centerFrequencies; }
+    const std::vector<uint32_t> &channelMapping() const { return _channelMapping; }
 
   protected:
     unsigned _correlationMode;

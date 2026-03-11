@@ -187,7 +187,7 @@ DeviceInstanceWithoutUnifiedMemory::DeviceInstanceWithoutUnifiedMemory(Correlato
   devInputBuffer((size_t) ps.nrStations() * ps.nrPolarizations() * (ps.nrSamplesPerChannel() + NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter() * ps.nrBytesPerRealSample()),
   devDelaysAtBegin(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
   devDelaysAfterEnd(ps.nrBeams() * ps.nrStations() * ps.nrPolarizations() * sizeof(float)),
-  devFracDelays(sizeof(float) * 2 * 2),
+  devFracDelays(sizeof(float) * ps.nrStations() * 2),
   currentVisibilityBuffer(0)
 {
   for (unsigned buffer = 0; buffer < NR_DEV_VISIBILITIES_BUFFERS; buffer ++)
@@ -310,7 +310,8 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
       double dN = fracDelay(delayAtEnd);
   
       double d1 = (dN - d0) / N;
-  
+      // double d1 = (delayAtEnd - delayAtStart) / N;
+
       hostDelays[station][0] = -(float)d0;
       hostDelays[station][1] = -(float)d1;
   
@@ -338,8 +339,9 @@ void DeviceInstanceWithoutUnifiedMemory::doSubband(const TimeStamp &time,
 
     executeStream.wait(inputTransferReady);
 
-    const double subbandCenter = ps.centerFrequencies()[subband];
+    const double subbandCenter = ps.centerFrequencies()[subband] + 24e6;
     const bool mirrored = ((subband + 1) % 2) != 0;
+    std::cout << subband << " " << mirrored << std::endl;
 
     if (!mirrored) {
       filter.launchAsync(executeStream, devCorrectedData, devInputBuffer, devFracDelays, subbandCenter);

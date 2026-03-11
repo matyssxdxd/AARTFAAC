@@ -14,6 +14,7 @@
 #endif
 
 #include <cassert>
+#include <algorithm>
 #include <chrono>
 #include <vector>
 
@@ -35,6 +36,27 @@ namespace {
     }
     return lut;
   } ();
+
+  inline void decodeMappedChannelSamples(
+      int8_t *__restrict dst,
+      unsigned nrSamples,
+      const uint8_t *__restrict payload,
+      size_t payloadBytes,
+      unsigned nchan,
+      size_t dataIndex)
+  {
+    for (unsigned sample = 0; sample < nrSamples; ++sample, dataIndex += nchan) {
+      const size_t byteIndex = dataIndex >> 2;
+
+      if (byteIndex >= payloadBytes) {
+        dst[sample] = 0;
+        continue;
+      }
+
+      const size_t lutIndex = (static_cast<size_t>(payload[byteIndex]) << 2) + (dataIndex & 0x3);
+      dst[sample] = decodeLUT[lutIndex];
+    }
+  }
 }
 
 void uncached_memcpy(void *__restrict dst, const void *__restrict src, size_t size)
@@ -119,6 +141,32 @@ InputBuffer::InputBuffer(const ISBI_Parset &ps, MultiArrayHostBuffer<char, 4> ho
   myFirstStation(myFirstStation),
   myNrStations(myNrStations),
   nrRingBufferSamplesPerSubband(ps.nrRingBufferSamplesPerSubband()),
+  mappedChannels([&] {
+    std::vector<uint32_t> channels(myNrSubbands * ps.nrPolarizations());
+
+    for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
+      const unsigned subbandOffset = (myFirstSubband + subband) * ps.nrPolarizations();
+
+      for (unsigned pol = 0; pol < ps.nrPolarizations(); ++pol) {
+        channels[subband * ps.nrPolarizations() + pol] = ps.channelMapping()[subbandOffset + pol];
+      }
+    }
+
+    return channels;
+  }()),
+  ringBufferBases([&] {
+    std::vector<int8_t *> bases(myNrSubbands * ps.nrPolarizations());
+
+    for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
+      for (unsigned pol = 0; pol < ps.nrPolarizations(); ++pol) {
+        bases[subband * ps.nrPolarizations() + pol] =
+            reinterpret_cast<int8_t *>(
+                hostRingBuffer[myFirstSubband + subband][myFirstStation][pol][0].origin());
+      }
+    }
+
+    return bases;
+  }()),
   hostRingBuffer(hostRingBuffer),
   nrTimesPerPacket(nrTimesPerPacket),
   nrHistorySamples((NR_TAPS - 1) * ps.nrChannelsPerSubbandBeforeFilter()),
@@ -168,36 +216,40 @@ void InputBuffer::handleConsecutivePackets(std::array<std::array<char, maxPacket
     latestWriteTime = endTime;
 
     readerAndWriterSynchronization.startWrite(beginTime, endTime);
-
-    std::vector<int8_t> decoded;
-    decoded.reserve(header->samplesPerFrame() * header->numberOfChannels());
+    const unsigned nrPolarizations = ps.nrPolarizations();
 
     for (unsigned packet = firstPacket; packet < lastPacket; ++packet) {
       const VDIFHeader* packetHeader = reinterpret_cast<const VDIFHeader*>(packetBuffer[packet].data());
       const uint8_t *payload = reinterpret_cast<const uint8_t*>(packetBuffer[packet].data() + packetHeader->headerSize());
       const size_t payloadBytes = packetHeader->dataSize();
       const unsigned nchan = packetHeader->numberOfChannels();
+      const unsigned firstSpan = std::min(nrTimesPerPacket, nrRingBufferSamplesPerSubband - timeIndex);
+      const unsigned secondSpan = nrTimesPerPacket - firstSpan;
 
-      for (unsigned sample = 0; sample < nrTimesPerPacket; sample ++) {
-        const size_t sampleBase = static_cast<size_t>(sample) * nchan;
-        for (unsigned subband = 0; subband < ps.nrSubbands(); subband ++) {
-          const unsigned mappingBase = subband * ps.nrPolarizations();
-          for (unsigned pol = 0; pol < ps.nrPolarizations(); pol ++) {
-            const unsigned mappedIndex = ps.channelMapping()[mappingBase + pol];
-            const size_t dataIndex = sampleBase + mappedIndex;
-            const size_t byteIndex = dataIndex >> 2;
-            int8_t value = 0;
-            if (byteIndex < payloadBytes) {
-              const size_t lutIndex = static_cast<size_t>(payload[byteIndex]) * 4 + (dataIndex & 0x3);
-              value = decodeLUT[lutIndex]; 
-            }
+      for (unsigned subband = 0; subband < myNrSubbands; ++subband) {
+        const unsigned mappingBase = subband * nrPolarizations;
 
-            int8_t* dest = reinterpret_cast<int8_t*>(hostRingBuffer[subband][myFirstStation][pol][timeIndex].origin());
-            *dest = value;
+        for (unsigned pol = 0; pol < nrPolarizations; ++pol) {
+          const size_t mappedIndex = mappedChannels[mappingBase + pol];
+          int8_t *ringBuffer = ringBufferBases[mappingBase + pol];
+
+          decodeMappedChannelSamples(ringBuffer + timeIndex, firstSpan, payload, payloadBytes, nchan, mappedIndex);
+
+          if (secondSpan > 0) {
+            decodeMappedChannelSamples(
+                ringBuffer,
+                secondSpan,
+                payload,
+                payloadBytes,
+                nchan,
+                mappedIndex + static_cast<size_t>(firstSpan) * nchan);
           }
         }
-        if (++timeIndex == nrRingBufferSamplesPerSubband) timeIndex = 0;
       }
+
+      timeIndex += nrTimesPerPacket;
+      if (timeIndex >= nrRingBufferSamplesPerSubband)
+        timeIndex -= nrRingBufferSamplesPerSubband;
     }
 
     {
@@ -445,4 +497,3 @@ void InputBuffer::caughtSignal()
 {
   signalCaught = true;
 }
-

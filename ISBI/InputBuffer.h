@@ -10,11 +10,13 @@
 
 #include <boost/multi_array.hpp>
 
+#include <cstdint>
 #include <atomic>
 #include <csignal>
 #include <functional>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 
 class InputBuffer{
@@ -41,6 +43,8 @@ private:
 
     const ISBI_Parset	&ps;
     unsigned			myFirstSubband, myNrSubbands, myFirstStation, myNrStations, nrRingBufferSamplesPerSubband, nrTimesPerPacket, nrHistorySamples;
+    std::vector<uint32_t>	mappedChannels;
+    std::vector<int8_t *>	ringBufferBases;
 
     MultiArrayHostBuffer<char, 4> *hostRingBuffer;
     SparseSet<TimeStamp>	validData;

@@ -27,7 +27,7 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
   CorrelatorParset(argc, argv, false),
   _nrRingBufferSamplesPerSubband(128015360),
   _visibilitiesIntegration(1),
-  _maxDelaySamples(0)
+  _maxDelaySamples(1000)
 {
   using namespace boost::program_options;
 
@@ -62,13 +62,6 @@ ISBI_Parset::ISBI_Parset(int argc, char **argv)
   if (_outputBufferNodes.size() != 0 && _outputBufferNodes.size() != _outputDescriptors.size())
     throw Error("output buffer node list has unexpected size");
 #endif
-
-  // for (std::size_t station = 0; station < nrStations(); ++station) {
-  //   for (const auto& [timestamp, delay] : delays()[station]) {
-  //     int delaySamples = static_cast<int>(std::ceil(std::abs(delay * sampleRate())));
-  //     _maxDelaySamples = std::max(_maxDelaySamples, delaySamples);
-  //   }
-  // }
 
 }
 

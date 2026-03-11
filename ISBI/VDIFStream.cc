@@ -1,6 +1,7 @@
 #include "VDIFStream.h"
 
 #include <iostream>
+#include <algorithm>
 #include <cstdio>
 #include <stdlib.h>
 #include <cstdint>
@@ -11,9 +12,12 @@
 
 constexpr uint32_t HEADER_SIZE = 32; // bytes
 constexpr uint32_t DATA_SIZE = 8000; // bytes
+constexpr std::size_t READ_BUFFER_SIZE = 1u << 20;
 
 VDIFStream::VDIFStream(std::string inputFile, double sampleRate) 
-  : file(inputFile, std::ios::binary), sampleRate(sampleRate), numberOfFrames(0), invalidFrames(0), firstHeaderFound(false) { 
+  : ioBuffer(READ_BUFFER_SIZE), firstHeaderFound(false), invalidFrames(0), numberOfFrames(0), sampleRate(sampleRate), dataSize(0), headerSize(0) { 
+    file.rdbuf()->pubsetbuf(ioBuffer.data(), ioBuffer.size());
+    file.open(inputFile, std::ios::binary);
     std::cout << "Created a new VDIFStream object for " << inputFile << std::endl;
 
     if (!file.is_open()) { throw std::runtime_error("Failed to open " + inputFile + " file!"); }
@@ -29,36 +33,29 @@ VDIFStream::VDIFStream(std::string inputFile, double sampleRate)
   }
 
 bool VDIFStream::readFirstHeader() {
-  while (file) {
-    off_t offset = static_cast<off_t>(numberOfFrames) * (HEADER_SIZE + DATA_SIZE);
-    file.seekg(offset, std::ios::beg);
-    file.read(reinterpret_cast<char*>(&currentHeader), HEADER_SIZE);
+  while (file.read(reinterpret_cast<char*>(&currentHeader), HEADER_SIZE)) {
+    if (checkHeader() == HeaderStatus::VALID) {
+      std::memcpy(&firstHeader, &currentHeader, HEADER_SIZE);
+      firstHeaderFound = true;
 
-    if (!file) return false;
-
-    if (file.gcount() == static_cast<std::streamsize>(HEADER_SIZE)) {
-      uint32_t words[4];
-      std::memcpy(words, &currentHeader, sizeof(words));
-
-      if (words[0] == 0x11223344 ||
-          words[1] == 0x11223344 ||
-          words[2] == 0x11223344 ||
-          words[3] == 0x11223344) {
-        invalidFrames++;
-      } else {
-        std::memcpy(&firstHeader, &currentHeader, HEADER_SIZE);
-        std::cout << "Found first valid header at offset: " << offset << std::endl;
-        return true;
-     }
+      const off_t offset = static_cast<off_t>(numberOfFrames) * (HEADER_SIZE + DATA_SIZE);
+      std::cout << "Found first valid header at offset: " << offset << std::endl;
+      return true;
     }
+
+    ++invalidFrames;
+    ++numberOfFrames;
+    file.ignore(DATA_SIZE);
   }
 
   return false;
 }
 
 void VDIFStream::read(char* frame) {
-  file.read(frame, headerSize + dataSize);
-  if (file.gcount() != static_cast<std::streamsize>(headerSize + dataSize)) {
+  const std::streamsize frameBytes = static_cast<std::streamsize>(headerSize + dataSize);
+
+  file.read(frame, frameBytes);
+  if (file.gcount() != frameBytes) {
     if (file.eof()) throw EndOfStreamException("VDIFStream::read EOF reached");
     throw EndOfStreamException("VDIFStream::read incomplete frame read");
   }
@@ -69,11 +66,13 @@ void VDIFStream::read(char* frame) {
     std::cout << "Invalid header found at offset " << expectedOffset << std::endl;
     findNextValidHeader();
 
-    file.read(frame, headerSize + dataSize);
-    if (file.gcount() != static_cast<std::streamsize>(headerSize + dataSize)) {
+    file.read(frame, frameBytes);
+    if (file.gcount() != frameBytes) {
       if (file.eof()) throw EndOfStreamException("VDIFStream::read EOF reached");
       throw EndOfStreamException("VDIFStream::read incomplete frame read");
     }
+
+    std::memcpy(&currentHeader, frame, headerSize);
   }
 
   numberOfFrames++;
@@ -82,12 +81,6 @@ void VDIFStream::read(char* frame) {
 void VDIFStream::findNextValidHeader() {
   while (true) {
     numberOfFrames++;
-    off_t offset = static_cast<off_t>(numberOfFrames) * (headerSize + dataSize);
-    file.seekg(offset, std::ios::beg);
-
-    if (!file) {
-      throw EndOfStreamException("VDIFStream::findNextValidHeader: seek failed");
-    }
 
     file.read(reinterpret_cast<char*>(&currentHeader), headerSize);
     if (file.gcount() != static_cast<std::streamsize>(headerSize)) {
@@ -95,8 +88,17 @@ void VDIFStream::findNextValidHeader() {
     }
 
     if (checkHeader() == HeaderStatus::VALID) {
-      file.seekg(offset, std::ios::beg);
+      file.seekg(-static_cast<std::streamoff>(headerSize), std::ios::cur);
+      if (!file) {
+        throw EndOfStreamException("VDIFStream::findNextValidHeader: seek failed");
+      }
       return;
+    }
+
+    ++invalidFrames;
+    file.ignore(dataSize);
+    if (!file) {
+      throw EndOfStreamException("VDIFStream::findNextValidHeader: skip failed");
     }
   }
 }
@@ -163,5 +165,3 @@ void VDIFHeader::decode2bit(const std::array<char, maxPacketSize>& frame,
     std::copy_n(decoded, tail, out.begin() + fullBytes * 4);
   }
 }
-
-
